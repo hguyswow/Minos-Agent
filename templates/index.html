@@ -39,6 +39,10 @@
             gap: 15px;
             overflow-y: auto;
         }
+        
+        .sidebar > * {
+            flex-shrink: 0;
+        }
 
         .main-chat {
             flex-grow: 1;
@@ -410,20 +414,25 @@
         </div>
 
         <div class="panel" style="margin-top:auto;">
-            <h3>
-                ⚙️ Telegram Config
-                <span class="tooltip-icon">?
+            <h3 style="color: var(--accent); margin-bottom: 5px; font-size: 13px;">
+                <span class="tooltip-icon">❓
                     <span class="tooltip-text">
                         <b>[텔레그램 연동 가이드]</b><br>
-                        1. 텔레그램 앱에서 <b>@BotFather</b>를 검색<br>
+                        1. 텔레그램 앱에서 <b>@BotFather</b> 검색<br>
                         2. <b>/newbot</b> 명령어를 치고 봇 생성<br>
-                        3. 발급받은 <b>HTTP API Token</b>을 아래에 붙여넣기<br>
-                        4. 저장 후 <code>Start-AntigravityBot.bat</code> 실행
+                        3. 발급받은 <b>HTTP API Token</b>을 아래에 복사/붙여넣기<br>
+                        4. <b>저장</b> 후 대시보드를 재시작하면 텔레그램으로 대화 가능!
                     </span>
                 </span>
+                TELEGRAM CONFIG
             </h3>
+            {% if has_token %}
+            <div id="token-status-indicator" style="color: var(--success); font-size: 11px; margin-bottom: 8px;">✅ 현재 토큰 저장되어 있음</div>
+            {% else %}
+            <div id="token-status-indicator" style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">❌ 토큰 없음 (입력 필요)</div>
+            {% endif %}
             <div style="margin-top:10px;">
-                <input type="password" id="tg-token" placeholder="HTTP API Token 입력...">
+                <input type="password" id="tg-token" placeholder="새로운 Token 입력...">
                 <div style="display: flex; justify-content: space-between;">
                     <button class="save" onclick="saveConfig()">💾 저장</button>
                     <button class="delete" onclick="deleteConfig()">🗑️ 초기화</button>
@@ -470,6 +479,8 @@
                 status.innerText = '저장되었습니다!';
                 status.style.color = 'var(--success)';
                 status.style.display = 'block';
+                document.getElementById('token-status-indicator').innerHTML = '✅ 현재 토큰 저장되어 있음';
+                document.getElementById('token-status-indicator').style.color = 'var(--success)';
                 setTimeout(() => { status.style.display = 'none'; }, 2000);
             } catch(e) { console.error(e); }
         }
@@ -483,6 +494,8 @@
                 status.innerText = '초기화되었습니다!';
                 status.style.color = 'var(--danger)';
                 status.style.display = 'block';
+                document.getElementById('token-status-indicator').innerHTML = '❌ 토큰 없음 (입력 필요)';
+                document.getElementById('token-status-indicator').style.color = '#94a3b8';
                 setTimeout(() => { status.style.display = 'none'; }, 2000);
             } catch(e) { console.error(e); }
         }
