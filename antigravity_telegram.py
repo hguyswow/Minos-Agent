@@ -564,14 +564,22 @@ async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE
         await bot.edit_message_text(chat_id=chat_id, message_id=status_message.message_id, text=f'❌ 통신 오류: {str(e)}')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = str(update.effective_chat.id)
-    user_text = update.message.text
-    
-    # 사용자의 말을 기억에 추가
-    memory.add_message(chat_id=chat_id, role="user", content=user_text)
-    
-    # 스트리밍 텍스트 생성
-    await stream_llm_response(update, context, chat_id, current_query=user_text)
+    try:
+        chat_id = str(update.effective_chat.id)
+        user_text = update.message.text
+        
+        # 사용자의 말을 기억에 추가
+        memory.add_message(chat_id=chat_id, role="user", content=user_text)
+        
+        # 스트리밍 텍스트 생성
+        await stream_llm_response(update, context, chat_id, current_query=user_text)
+    except Exception as e:
+        print(f"\n[오류] 텔레그램 메시지 처리 중 예외 발생: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        try:
+            await update.message.reply_text(f"❌ 내부 시스템 오류가 발생했습니다: {str(e)}")
+        except: pass
 
 async def schedule_checker(application):
     import asyncio
@@ -728,7 +736,8 @@ def main():
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
     try:
-        application.run_polling(drop_pending_updates=True)
+        # 타임아웃 값을 명시적으로 부여하여 통신 지연 시 튕김 방지
+        application.run_polling(drop_pending_updates=True, timeout=30, read_timeout=30)
     except Exception as e:
         print(f"\n[치명적 오류] 텔레그램 서버 통신 중 오류가 발생하여 종료됩니다: {e}")
 
