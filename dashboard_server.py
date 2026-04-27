@@ -4,6 +4,9 @@ import psutil
 from flask import Flask, render_template, request, Response, jsonify
 from core_engine import generate_response_stream
 from memory_engine import MemoryEngine
+from core_engine import generate_response_stream
+from memory_engine import MemoryEngine
+from tts_engine import tts
 import subprocess
 
 try:
@@ -276,6 +279,7 @@ def chat():
             yield f"data: {json.dumps({'status': 'error', 'content': '엔진에서 응답이 없습니다. Ollama 서버를 확인하세요.'})}\n\n"
         elif full_reply:
             sync_to_telegram(chat_id, full_reply)
+            tts.speak(full_reply)
             
     return Response(generate(), mimetype='text/event-stream')
 
@@ -360,6 +364,7 @@ def approve_command():
             
         if full_reply:
             sync_to_telegram(chat_id, full_reply)
+            tts.speak(full_reply)
             
     return Response(execute_and_stream(), mimetype='text/event-stream')
 
@@ -377,6 +382,7 @@ def decline_command():
             
         if full_reply:
             sync_to_telegram(chat_id, full_reply)
+            tts.speak(full_reply)
             
     return Response(stream_rejection(), mimetype='text/event-stream')
 
