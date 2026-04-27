@@ -31,6 +31,8 @@
 
         .sidebar {
             width: 320px;
+            min-width: 260px;
+            max-width: 600px;
             background-color: var(--panel-bg);
             border-right: 1px solid var(--border);
             padding: 20px;
@@ -38,10 +40,23 @@
             flex-direction: column;
             gap: 15px;
             overflow-y: auto;
+            flex-shrink: 0;
         }
         
         .sidebar > * {
             flex-shrink: 0;
+        }
+
+        .resizer {
+            width: 6px;
+            background-color: var(--bg-color);
+            cursor: col-resize;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .resizer:hover, .resizer:active {
+            background-color: var(--accent);
         }
 
         .main-chat {
@@ -481,6 +496,9 @@
         </div>
     </div>
 
+    <!-- Drag Handle -->
+    <div class="resizer" id="resizer"></div>
+
     <div class="main-chat">
         <div class="chat-container" id="chat-container">
             <!-- Messages go here -->
@@ -574,6 +592,35 @@
     </div>
 
     <script>
+        // --- Sidebar Resize Logic ---
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.querySelector('.sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            // Disable text selection while dragging
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            // Min & Max bounds
+            if (newWidth < 260) newWidth = 260;
+            if (newWidth > 600) newWidth = 600;
+            sidebar.style.width = newWidth + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = 'auto';
+            }
+        });
+        
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
