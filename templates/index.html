@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minos AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .main-chat {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .header {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 5px;
+            letter-spacing: -0.5px;
+        }
+
+        .panel {
+            background-color: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border);
+        }
+        
+        .panel h3 {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        details {
+            background-color: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        
+        summary {
+            padding: 15px;
+            font-size: 13px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            user-select: none;
+            outline: none;
+        }
+        
+        summary:hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+        
+        .details-content {
+            padding: 0 15px 15px 15px;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-top: 1px solid var(--border);
+        }
+        .list-item:first-child { border-top: none; }
+
+        .toggle-btn {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+        .toggle-btn.on { background-color: var(--success); }
+        .toggle-btn.auto { background-color: var(--warning); }
+
+        .chat-container {
+            flex-grow: 1;
+            background-color: var(--panel-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 15px;
+            white-space: pre-wrap;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user {
+            background-color: var(--accent);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .assistant {
+            background-color: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .input-area {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"], input[type="password"] {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+            width: 100%;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--accent);
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            padding: 15px !important;
+            border-radius: 12px !important;
+            font-size: 16px !important;
+        }
+
+        button.send, button.save {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button.send { padding: 0 25px; border-radius: 12px; }
+        button.save { padding: 10px 15px; margin-top: 10px; width: 48%; }
+        button.delete { background-color: var(--danger); padding: 10px 15px; margin-top: 10px; width: 48%; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+        button.delete:hover { background-color: #dc2626; }
+        button.send:hover, button.save:hover { background-color: var(--accent-hover); }
+
+        .cmd-box {
+            background-color: #000;
+            border-left: 4px solid var(--warning);
+            padding: 15px;
+            margin-top: 10px;
+            font-family: monospace;
+            border-radius: 4px;
+        }
+        
+        .cmd-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .cmd-btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-yes { background-color: var(--success); color: white; }
+        .btn-no { background-color: var(--danger); color: white; }
+
+        .typing-indicator {
+            align-self: flex-start;
+            color: #94a3b8;
+            font-size: 14px;
+            font-style: italic;
+            display: none;
+            margin-top: 10px;
+        }
+
+        /* Tooltip style */
+        .tooltip-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background-color: var(--accent);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 11px;
+            line-height: 16px;
+            cursor: help;
+            margin-left: 5px;
+            position: relative;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #334155;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            right: -10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 11px;
+            font-weight: normal;
+            line-height: 1.4;
+            text-transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 13px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #334155 transparent transparent transparent;
+        }
+
+        .tooltip-icon:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .contact-tooltip {
+            visibility: hidden;
+            width: 280px;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            text-align: left;
+            border-radius: 8px;
+            padding: 15px;
+            position: absolute;
+            z-index: 200;
+            top: 120%;
+            right: 0;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-5px);
+            font-size: 12px;
+            font-weight: normal;
+            line-height: 1.5;
+            border: 1px solid var(--accent);
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        
+        .contact-info:hover .contact-tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="header" style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span>🐙 Minos</span>
+            <span class="contact-info" style="font-size: 11px; font-weight: 400; color: #94a3b8; cursor: help; position: relative;">
+                문의:hguyswow@gmail.com
+                <div class="contact-tooltip">
+                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px; font-size: 13px;">About Minos Project</div>
+                    <div style="margin-bottom: 12px; color: #cbd5e1;">
+                        "Created to overcome the shortcomings of heavy OpenClo and Hermes agents, and specifically designed to maximize the performance and efficiency of local LLMs."
+                    </div>
+                    <div style="border-top: 1px solid #334155; margin: 10px 0;"></div>
+                    <div style="font-weight: 600; color: var(--success); margin-bottom: 5px;">☕ Support the Developer</div>
+                    <div>• <b>PayPal:</b> <a href="https://paypal.me/hguyswow" target="_blank" style="color: #60a5fa; text-decoration: none;">paypal.me/hguyswow</a></div>
+                    <div>• <b>KB 국민은행:</b> 027210862460 강*호</div>
+                </div>
+            </span>
+        </div>
+        
+        <div class="panel">
+            <h3>System Resources</h3>
+            <div class="stat-row">
+                <span>CPU</span>
+                <span id="cpu-stat">--%</span>
+            </div>
+            <div class="stat-row">
+                <span>RAM</span>
+                <span id="ram-stat">--%</span>
+            </div>
+            <div class="stat-row">
+                <span style="color:var(--success);">GPU</span>
+                <span id="gpu-stat" style="color:var(--success);">--%</span>
+            </div>
+            <div class="stat-row">
+                <span style="color:var(--success);">VRAM</span>
+                <span id="vram-stat" style="color:var(--success);">--%</span>
+            </div>
+        </div>
+
+        <details>
+            <summary>Tentacles (Daemon)</summary>
+            <div class="details-content" id="tentacle-list">
+                <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+            </div>
+        </details>
+
+        <details>
+            <summary>Skills (Auto-Approve)</summary>
+            <div class="details-content" id="skill-list">
+                <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+            </div>
+        </details>
+        
+        <details>
+            <summary>📦 Environment Setup</summary>
+            <div class="details-content" style="font-size: 11px; color: #cbd5e1; line-height: 1.5;">
+                <div style="margin-bottom: 10px; color: var(--warning);">
+                    ⚠️ <b>타 PC 구동 조건 3가지</b><br>
+                    1. Python 3+ 설치 완료<br>
+                    2. Ollama 설치 및 구동 중<br>
+                    3. AI 모델 다운로드 완료
+                </div>
+                <div style="color: #94a3b8; font-style: italic; margin-bottom: 10px;">
+                    ※ 처음 빈 컴퓨터에 설치하실 때는 동봉된 <b>Setup-Environment.bat</b>을 실행하세요.
+                </div>
+                <button class="save" onclick="pullModel('nomic-embed-text')" style="width: 100%; font-size: 11px; padding: 8px;">☁️ 메모리 모델(nomic) Pull</button>
+                <div id="pull-status" style="color:var(--success); font-size:11px; margin-top:5px; text-align:center; display:none;">요청 완료!</div>
+            </div>
+        </details>
+        
+        <div class="panel" style="border-color: var(--danger);">
+            <h3 style="color: var(--danger);">Error Logs</h3>
+            <div id="error-list" style="font-size:12px; color:#ef4444; word-break:break-all;">
+                No errors detected.
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top:auto;">
+            <h3>
+                ⚙️ Telegram Config
+                <span class="tooltip-icon">?
+                    <span class="tooltip-text">
+                        <b>[텔레그램 연동 가이드]</b><br>
+                        1. 텔레그램 앱에서 <b>@BotFather</b>를 검색<br>
+                        2. <b>/newbot</b> 명령어를 치고 봇 생성<br>
+                        3. 발급받은 <b>HTTP API Token</b>을 아래에 붙여넣기<br>
+                        4. 저장 후 <code>Start-AntigravityBot.bat</code> 실행
+                    </span>
+                </span>
+            </h3>
+            <div style="margin-top:10px;">
+                <input type="password" id="tg-token" placeholder="HTTP API Token 입력...">
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="save" onclick="saveConfig()">💾 저장</button>
+                    <button class="delete" onclick="deleteConfig()">🗑️ 초기화</button>
+                </div>
+            </div>
+            <div id="config-status" style="color:var(--success); font-size:11px; margin-top:5px; text-align:center; display:none;">저장되었습니다!</div>
+        </div>
+    </div>
+
+    <div class="main-chat">
+        <div class="chat-container" id="chat-container">
+            <!-- Messages go here -->
+        </div>
+        <div class="typing-indicator" id="typing">알쫑이가 답변을 생성 중입니다... ✍️</div>
+        
+        <div class="input-area">
+            <input type="text" class="chat-input" id="user-input" placeholder="알쫑이에게 명령을 내리세요..." autocomplete="off" onkeypress="handleEnter(event)">
+            <button class="send" onclick="sendMessage()">전송</button>
+        </div>
+    </div>
+
+    <script>
+        // 토큰 로딩
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if(data.telegram_token) {
+                    document.getElementById('tg-token').value = data.telegram_token;
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // 토큰 저장
+        async function saveConfig() {
+            const token = document.getElementById('tg-token').value.trim();
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({telegram_token: token})
+                });
+                const status = document.getElementById('config-status');
+                status.innerText = '저장되었습니다!';
+                status.style.color = 'var(--success)';
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        // 토큰 삭제
+        async function deleteConfig() {
+            try {
+                await fetch('/api/config/reset', { method: 'POST' });
+                document.getElementById('tg-token').value = '';
+                const status = document.getElementById('config-status');
+                status.innerText = '초기화되었습니다!';
+                status.style.color = 'var(--danger)';
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        // 모델 Pull 요청
+        async function pullModel(modelName) {
+            try {
+                await fetch('/api/setup/pull_models', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({model: modelName})
+                });
+                const status = document.getElementById('pull-status');
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 3000);
+            } catch(e) { console.error(e); }
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                document.getElementById('cpu-stat').innerText = data.cpu + '%';
+                document.getElementById('ram-stat').innerText = data.ram + '%';
+                document.getElementById('gpu-stat').innerText = data.gpu + '%';
+                document.getElementById('vram-stat').innerText = data.vram + '%';
+                
+                // 문어발 리스트
+                const tList = document.getElementById('tentacle-list');
+                tList.innerHTML = '';
+                data.tentacles.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    const btnClass = t.is_on ? 'toggle-btn on' : 'toggle-btn';
+                    const btnText = t.is_on ? 'ON' : 'OFF';
+                    div.innerHTML = `
+                        <span style="font-size:12px;">${t.name}</span>
+                        <button class="${btnClass}" onclick="toggleTentacle('${t.name}')">${btnText}</button>
+                    `;
+                    tList.appendChild(div);
+                });
+
+                // 스킬 리스트
+                const sList = document.getElementById('skill-list');
+                sList.innerHTML = '';
+                data.skills.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    const btnClass = s.is_auto ? 'toggle-btn auto' : 'toggle-btn';
+                    const btnText = s.is_auto ? 'AUTO' : 'MANUAL';
+                    div.innerHTML = `
+                        <span style="font-size:12px;">${s.name}</span>
+                        <button class="${btnClass}" onclick="toggleSkill('${s.name}')">${btnText}</button>
+                    `;
+                    sList.appendChild(div);
+                });
+                
+                const eList = document.getElementById('error-list');
+                if(Object.keys(data.errors).length > 0) {
+                    eList.innerHTML = JSON.stringify(data.errors, null, 2).replace(/\n/g, '<br>');
+                } else {
+                    eList.innerHTML = 'No errors detected. ✅';
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function fetchMemory() {
+            try {
+                const res = await fetch('/api/memory');
+                const msgs = await res.json();
+                const container = document.getElementById('chat-container');
+                container.innerHTML = '';
+                msgs.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `message ${m.role}`;
+                    div.innerText = m.content;
+                    container.appendChild(div);
+                });
+                container.scrollTop = container.scrollHeight;
+            } catch(e) {}
+        }
+
+        async function toggleTentacle(name) {
+            await fetch('/api/toggle_tentacle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            fetchStatus();
+        }
+
+        async function toggleSkill(name) {
+            await fetch('/api/toggle_skill', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            fetchStatus();
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            
+            input.value = '';
+            
+            const container = document.getElementById('chat-container');
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user';
+            userDiv.innerText = msg;
+            container.appendChild(userDiv);
+            container.scrollTop = container.scrollHeight;
+
+            document.getElementById('typing').style.display = 'block';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg})
+                });
+                await processSSE(response);
+            } catch(e) {
+                console.error(e);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory(); 
+            }
+        }
+        
+        async function approveCmd(btn, cmd) {
+            btn.parentElement.innerHTML = '<span style="color:#10b981;">✅ 명령어 승인됨. 결과 대기 중...</span>';
+            document.getElementById('typing').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/command/approve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: cmd})
+                });
+                await processSSE(response);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory();
+            }
+        }
+        
+        async function declineCmd(btn) {
+            btn.parentElement.innerHTML = '<span style="color:#ef4444;">❌ 명령어 거부됨.</span>';
+            document.getElementById('typing').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/command/decline', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                await processSSE(response);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory();
+            }
+        }
+        
+        async function processSSE(response) {
+            const container = document.getElementById('chat-container');
+            const astDiv = document.createElement('div');
+            astDiv.className = 'message assistant';
+            container.appendChild(astDiv);
+            let currentText = "";
+            let buffer = "";
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            
+            while(true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop(); 
+                
+                for(const line of lines) {
+                    if(line.startsWith('data: ')) {
+                        const dataStr = line.substring(6);
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if(data.status === 'chunk') {
+                                currentText += data.content;
+                                astDiv.innerText = currentText;
+                                container.scrollTop = container.scrollHeight;
+                            } else if(data.status === 'system') {
+                                currentText += "\n\n[시스템]: " + data.content;
+                                astDiv.innerText = currentText;
+                            } else if(data.status === 'error') {
+                                currentText += "\n\n❌ [오류]: " + data.content;
+                                astDiv.innerText = currentText;
+                                container.scrollTop = container.scrollHeight;
+                            } else if(data.status === 'command_request') {
+                                const cmdDiv = document.createElement('div');
+                                cmdDiv.className = 'cmd-box';
+                                cmdDiv.innerHTML = `
+                                    <div>🛑 <b>명령어 실행 대기 중</b></div>
+                                    <div style="margin-top:10px; color:#fbbf24;">${data.content}</div>
+                                    <div class="cmd-actions">
+                                        <button class="cmd-btn btn-yes" onclick="approveCmd(this, '${data.content.replace(/'/g, "\\'")}')">✅ 허락</button>
+                                        <button class="cmd-btn btn-no" onclick="declineCmd(this)">❌ 거부</button>
+                                    </div>
+                                `;
+                                astDiv.appendChild(cmdDiv);
+                                container.scrollTop = container.scrollHeight;
+                            }
+                        } catch(e) {}
+                    }
+                }
+            }
+        }
+
+        setInterval(fetchStatus, 5000);
+        fetchConfig();
+        fetchStatus();
+        fetchMemory();
+    </script>
+</body>
+</html>
