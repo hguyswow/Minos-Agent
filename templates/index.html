@@ -84,34 +84,6 @@
             font-size: 13px;
         }
 
-        details {
-            background-color: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            margin-bottom: 15px;
-            overflow: hidden;
-        }
-        
-        summary {
-            padding: 15px;
-            font-size: 13px;
-            color: #94a3b8;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            user-select: none;
-            outline: none;
-        }
-        
-        summary:hover {
-            background-color: rgba(255,255,255,0.05);
-        }
-        
-        .details-content {
-            padding: 0 15px 15px 15px;
-        }
-
         .list-item {
             display: flex;
             justify-content: space-between;
@@ -145,6 +117,84 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            color: var(--accent);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .modal-close:hover { color: white; }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .menu-btn {
+            background-color: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            color: #94a3b8;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .menu-btn:hover {
+            background-color: rgba(255,255,255,0.08);
+            color: white;
+            border-color: #475569;
         }
 
         .message {
@@ -375,36 +425,20 @@
             </div>
         </div>
 
-        <details>
-            <summary>Tentacles (Daemon)</summary>
-            <div class="details-content" id="tentacle-list">
-                <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
-            </div>
-        </details>
+        <button class="menu-btn" onclick="openModal('modal-tentacles', '🐙 Tentacles (Daemon)')">
+            <span>🐙 Tentacles (Daemon)</span>
+            <span>▶</span>
+        </button>
 
-        <details>
-            <summary>Skills (Auto-Approve)</summary>
-            <div class="details-content" id="skill-list">
-                <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
-            </div>
-        </details>
+        <button class="menu-btn" onclick="openModal('modal-skills', '🛠️ Skills (Auto-Approve)')">
+            <span>🛠️ Skills (Auto-Approve)</span>
+            <span>▶</span>
+        </button>
         
-        <details>
-            <summary>📦 Environment Setup</summary>
-            <div class="details-content" style="font-size: 11px; color: #cbd5e1; line-height: 1.5;">
-                <div style="margin-bottom: 10px; color: var(--warning);">
-                    ⚠️ <b>타 PC 구동 조건 3가지</b><br>
-                    1. Python 3+ 설치 완료<br>
-                    2. Ollama 설치 및 구동 중<br>
-                    3. AI 모델 다운로드 완료
-                </div>
-                <div style="color: #94a3b8; font-style: italic; margin-bottom: 10px;">
-                    ※ 처음 빈 컴퓨터에 설치하실 때는 동봉된 <b>Setup-Environment.bat</b>을 실행하세요.
-                </div>
-                <button class="save" onclick="pullModel('nomic-embed-text')" style="width: 100%; font-size: 11px; padding: 8px;">☁️ 메모리 모델(nomic) Pull</button>
-                <div id="pull-status" style="color:var(--success); font-size:11px; margin-top:5px; text-align:center; display:none;">요청 완료!</div>
-            </div>
-        </details>
+        <button class="menu-btn" onclick="openModal('modal-env', '📦 Environment Setup')">
+            <span>📦 Environment Setup</span>
+            <span>▶</span>
+        </button>
         
         <div class="panel" style="border-color: var(--danger);">
             <h3 style="color: var(--danger);">Error Logs</h3>
