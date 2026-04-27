@@ -29,7 +29,7 @@ def get_bot_config():
 
 bot_config = get_bot_config()
 TELEGRAM_TOKEN = bot_config.get("telegram_token", "")
-LLAMA_URL = 'http://127.0.0.1:11434/api/chat'
+LLAMA_URL = 'http://127.0.0.1:11434/v1/chat/completions'
 
 # 기억력 엔진 및 스킬 시스템 초기화
 memory = MemoryEngine(memory_dir=os.path.join(BASE_DIR, "memory_logs"), max_working_memory=30)
@@ -697,7 +697,17 @@ def main():
         return
         
     print('Telegram Token    :', TELEGRAM_TOKEN[:10] + '...')
-    application = Application.builder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+    
+    # 텔레그램 서버 통신 타임아웃을 넉넉하게 30초로 설정하여 ConnectTimeout 방지
+    application = (
+        Application.builder()
+        .token(TELEGRAM_TOKEN)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .post_init(post_init)
+        .build()
+    )
     
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help_command))
@@ -717,7 +727,10 @@ def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
-    application.run_polling()
+    try:
+        application.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        print(f"\n[치명적 오류] 텔레그램 서버 통신 중 오류가 발생하여 종료됩니다: {e}")
 
 if __name__ == '__main__':
     main()
