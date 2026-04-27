@@ -14,6 +14,12 @@ try:
 except ImportError:
     EDGE_TTS_AVAILABLE = False
 
+try:
+    from gtts import gTTS
+    GTTS_AVAILABLE = True
+except ImportError:
+    GTTS_AVAILABLE = False
+
 
 try:
     import pyttsx3
@@ -70,6 +76,25 @@ class TTSEngine:
                         except: pass
                     
                     asyncio.run(play_edge())
+                elif engine_type == "google" and GTTS_AVAILABLE:
+                    # Google TTS 처리 (여성 목소리 기본)
+                    def play_google():
+                        tts_google = gTTS(text=text, lang='ko', slow=(rate < 150))
+                        fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
+                        os.close(fd)
+                        tts_google.save(temp_audio)
+                        
+                        pygame.mixer.music.load(temp_audio)
+                        pygame.mixer.music.set_volume(volume)
+                        pygame.mixer.music.play()
+                        while pygame.mixer.music.get_busy():
+                            pygame.time.Clock().tick(10)
+                        pygame.mixer.music.unload()
+                        try:
+                            os.remove(temp_audio)
+                        except: pass
+                    
+                    play_google()
                 else:
                     # 기존 pyttsx3 처리
                     if not pyttsx3: raise Exception("pyttsx3 not installed")
