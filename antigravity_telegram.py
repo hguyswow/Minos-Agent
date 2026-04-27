@@ -812,9 +812,10 @@ def main():
     application = (
         Application.builder()
         .token(TELEGRAM_TOKEN)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
+        .connect_timeout(60.0)
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .pool_timeout(60.0)
         .post_init(post_init)
         .build()
     )
@@ -839,8 +840,8 @@ def main():
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
     try:
-        # 타임아웃 값은 빌더에서 설정 완료됨
-        application.run_polling(drop_pending_updates=True)
+        # 타임아웃 방지를 위해 run_polling에도 명시적 설정 추가
+        application.run_polling(drop_pending_updates=True, timeout=60, read_timeout=60)
     except Exception as e:
         print(f"\n[치명적 오류] 텔레그램 서버 통신 중 오류가 발생하여 종료됩니다: {e}")
 
