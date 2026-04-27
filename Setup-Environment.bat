@@ -24,7 +24,7 @@ winget install Ollama.Ollama --silent --accept-package-agreements --accept-sourc
 echo.
 echo 2. 파이썬 라이브러리 자동 설치 중...
 pip install -q -r requirements.txt
-pip install -q flask psutil requests gputil pyttsx3 chromadb rank_bm25
+pip install -q flask psutil requests gputil pyttsx3 chromadb rank_bm25 SpeechRecognition faster-whisper pydub imageio-ffmpeg
 
 echo.
 echo [4/4] Starting Ollama and Pulling Base Models...

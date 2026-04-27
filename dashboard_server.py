@@ -239,6 +239,58 @@ def chat():
             
     return Response(generate(), mimetype='text/event-stream')
 
+@app.route('/api/chat/voice', methods=['POST'])
+def chat_voice():
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file"}), 400
+        
+    audio_file = request.files['audio']
+    
+    import tempfile
+    import stt_engine
+    
+    # 봇 환경설정에서 STT 엔진 정보 가져오기
+    config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
+    stt_engine_type = "google"
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+            stt_engine_type = cfg.get('stt_engine', 'google')
+    except: pass
+
+    fd, temp_audio = tempfile.mkstemp(suffix=".webm")
+    os.close(fd)
+    
+    try:
+        audio_file.save(temp_audio)
+        text = stt_engine.process_audio(temp_audio, engine=stt_engine_type)
+        if not text or text.startswith("[STT 오류"):
+            return jsonify({"error": text or "음성 인식 실패"}), 400
+            
+        chat_id = get_main_chat_id()
+        memory.add_message(chat_id=chat_id, role="user", content=text)
+        sync_to_telegram(chat_id, f"🎙️ **[음성 입력]**:\n{text}")
+        
+        def generate():
+            yield f"data: {json.dumps({'status': 'user_text', 'content': text})}\n\n"
+            has_yielded = False
+            full_reply = ""
+            for status, content in generate_response_stream(chat_id, text, 'embedding'):
+                has_yielded = True
+                if status == 'chunk':
+                    full_reply += content
+                yield f"data: {json.dumps({'status': status, 'content': content})}\n\n"
+            if not has_yielded:
+                yield f"data: {json.dumps({'status': 'error', 'content': '엔진에서 응답이 없습니다. Ollama 서버를 확인하세요.'})}\n\n"
+            elif full_reply:
+                sync_to_telegram(chat_id, full_reply)
+                
+        return Response(generate(), mimetype='text/event-stream')
+    finally:
+        if os.path.exists(temp_audio):
+            try: os.remove(temp_audio)
+            except: pass
+
 @app.route('/api/command/approve', methods=['POST'])
 def approve_command():
     chat_id = get_main_chat_id()
@@ -315,6 +367,8 @@ def handle_config():
         if 'tts_enabled' in data: config['tts_enabled'] = data['tts_enabled']
         if 'tts_volume' in data: config['tts_volume'] = float(data['tts_volume'])
         if 'tts_rate' in data: config['tts_rate'] = int(data['tts_rate'])
+        if 'stt_engine' in data: config['stt_engine'] = data['stt_engine']
+        if 'tg_voice_enabled' in data: config['tg_voice_enabled'] = data['tg_voice_enabled']
         
         with open(config_file, 'w', encoding='utf-8-sig') as f:
             json.dump(config, f, indent=4, ensure_ascii=False)

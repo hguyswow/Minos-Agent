@@ -636,6 +636,53 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ 내부 시스템 오류가 발생했습니다: {str(e)}")
         except: pass
 
+async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        chat_id = str(update.effective_chat.id)
+        
+        # 음성 수신 허용 여부 체크
+        current_config = get_bot_config()
+        if not current_config.get("tg_voice_enabled", True):
+            await update.message.reply_text("❌ 현재 음성 수신 기능이 꺼져 있습니다. 대시보드에서 켜주세요.")
+            return
+            
+        status_message = await update.message.reply_text("🎧 음성 메시지를 텍스트로 변환하는 중입니다...")
+        
+        voice = update.message.voice
+        file = await context.bot.get_file(voice.file_id)
+        
+        import tempfile
+        import stt_engine
+        
+        # 텔레그램 음성 파일(ogg) 다운로드
+        fd, temp_ogg = tempfile.mkstemp(suffix=".ogg")
+        os.close(fd)
+        await file.download_to_drive(temp_ogg)
+        
+        # STT 변환
+        engine_type = current_config.get("stt_engine", "google")
+        text = stt_engine.process_audio(temp_ogg, engine=engine_type)
+        
+        if os.path.exists(temp_ogg):
+            try: os.remove(temp_ogg)
+            except: pass
+            
+        if not text or text.startswith("[STT 오류"):
+            await context.bot.edit_message_text(chat_id=chat_id, message_id=status_message.message_id, text=f"❌ 음성 인식 실패: {text}")
+            return
+            
+        await context.bot.edit_message_text(chat_id=chat_id, message_id=status_message.message_id, text=f"🎙️ **[음성 인식 결과]**\n{text}", parse_mode='Markdown')
+        
+        # 텍스트로 변환된 내용을 봇 메모리에 추가하고 답변 생성
+        memory.add_message(chat_id=chat_id, role="user", content=text)
+        await stream_llm_response(update, context, chat_id, current_query=text)
+        
+    except Exception as e:
+        print(f"\n[오류] 텔레그램 음성 메시지 처리 중 예외 발생: {str(e)}")
+        try:
+            await update.message.reply_text(f"❌ 음성 처리 중 오류가 발생했습니다: {str(e)}")
+        except: pass
+
 async def schedule_checker(application):
     import asyncio
     from datetime import datetime
@@ -788,6 +835,7 @@ def main():
     application.add_handler(CallbackQueryHandler(skill_callback_handler))
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
     try:

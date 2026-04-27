@@ -440,8 +440,8 @@
             <span>▶</span>
         </button>
 
-        <button class="menu-btn" onclick="openModal('modal-tts', '🔊 TTS (음성 출력)')">
-            <span>🔊 TTS (음성 출력)</span>
+        <button class="menu-btn" onclick="openModal('modal-tts', '🎙️ 음성 입/출력 (Voice)')">
+            <span>🎙️ 음성 입/출력 (Voice)</span>
             <span>▶</span>
         </button>
         
@@ -488,6 +488,7 @@
         <div class="typing-indicator" id="typing">알쫑이가 답변을 생성 중입니다... ✍️</div>
         
         <div class="input-area">
+            <button class="mic-btn" id="mic-btn" onclick="toggleMic()" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 10px; color: #94a3b8; transition: color 0.3s;">🎙️</button>
             <input type="text" class="chat-input" id="user-input" placeholder="알쫑이에게 명령을 내리세요..." autocomplete="off" onkeypress="handleEnter(event)">
             <button class="send" onclick="sendMessage()">전송</button>
         </div>
@@ -536,7 +537,7 @@
                 <div id="modal-tts" style="display:none;">
                     <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
                         <div class="list-item" style="border:none; padding:10px 0;">
-                            <span style="font-size:14px; font-weight:bold; color:white;">🔊 알쫑이 목소리 출력</span>
+                            <span style="font-size:14px; font-weight:bold; color:white;">🔊 알쫑이 목소리 출력 (TTS)</span>
                             <label class="switch">
                                 <input type="checkbox" id="tts-enabled" onchange="saveTTSConfig()">
                                 <span class="slider round"></span>
@@ -550,6 +551,21 @@
                             <label for="tts-volume" style="display:block; margin-bottom:5px;">볼륨 (<span id="tts-volume-val">100</span>%)</label>
                             <input type="range" id="tts-volume" min="0" max="1" step="0.1" value="1.0" style="width:100%;" onchange="saveTTSConfig()" oninput="document.getElementById('tts-volume-val').innerText=Math.round(this.value*100)">
                         </div>
+                        <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 인식 엔진 (STT)</span>
+                            <select id="stt-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="google">Google 무료망 (빠름)</option>
+                                <option value="whisper">로컬 Whisper (보안)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">📱 텔레그램 음성 수신 허용</span>
+                            <label class="switch">
+                                <input type="checkbox" id="tg-voice-enabled" onchange="saveTTSConfig()" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                         <div id="tts-status" style="color:var(--success); font-size:11px; margin-top:15px; text-align:center; display:none;">설정이 저장되었습니다!</div>
                     </div>
                 </div>
@@ -558,6 +574,109 @@
     </div>
 
     <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleMic() {
+            const micBtn = document.getElementById('mic-btn');
+            
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        micBtn.style.color = '#94a3b8';
+                        micBtn.classList.remove('recording');
+                        micBtn.innerText = "🎙️";
+                        
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.webm');
+                        
+                        // 로딩 표시기 켜기
+                        const typing = document.getElementById('typing');
+                        typing.innerText = "알쫑이가 음성을 텍스트로 변환하고 답변을 생성 중입니다... ✍️";
+                        typing.style.display = 'block';
+                        
+                        try {
+                            const response = await fetch('/api/chat/voice', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            if(!response.ok) {
+                                const err = await response.json();
+                                alert("음성 처리 실패: " + err.error);
+                                typing.style.display = 'none';
+                                return;
+                            }
+                            
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder('utf-8');
+                            let currentMessageDiv = null;
+                            let currentContent = "";
+                            
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                
+                                const lines = decoder.decode(value).split('\n');
+                                for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                        try {
+                                            const data = JSON.parse(line.substring(6));
+                                            
+                                            if (data.status === 'user_text') {
+                                                addMessage("user", "🎙️ " + data.content);
+                                            } else if (data.status === 'chunk') {
+                                                if (!currentMessageDiv) {
+                                                    typing.style.display = 'none';
+                                                    currentMessageDiv = addMessage('assistant', '');
+                                                }
+                                                currentContent += data.content;
+                                                const md_content = currentContent.replace(/<CMD>(.*?)<\/CMD>/g, '<div class="cmd-block">$1</div>');
+                                                currentMessageDiv.querySelector('.message-content').innerHTML = marked.parse(md_content);
+                                                const container = document.getElementById('chat-container');
+                                                container.scrollTop = container.scrollHeight;
+                                            } else if (data.status === 'error') {
+                                                typing.style.display = 'none';
+                                                addMessage('assistant', '⚠️ 오류: ' + data.content);
+                                            }
+                                        } catch (e) { console.error('Parse error:', e, line); }
+                                    }
+                                }
+                            }
+                            typing.style.display = 'none';
+                            
+                        } catch (error) {
+                            console.error('Error processing audio:', error);
+                            typing.style.display = 'none';
+                            alert('음성 전송 중 오류가 발생했습니다.');
+                        }
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    micBtn.style.color = 'var(--danger)';
+                    micBtn.innerText = "🛑";
+                    
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    alert('마이크 접근 권한이 없거나 마이크를 사용할 수 없습니다.');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
         function openModal(targetId, title) {
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-tentacles').style.display = 'none';
@@ -592,6 +711,8 @@
                     document.getElementById('tts-volume').value = data.tts_volume;
                     document.getElementById('tts-volume-val').innerText = Math.round(data.tts_volume * 100);
                 }
+                if(data.stt_engine) document.getElementById('stt-engine').value = data.stt_engine;
+                if(data.tg_voice_enabled !== undefined) document.getElementById('tg-voice-enabled').checked = data.tg_voice_enabled;
             } catch(e) { console.error(e); }
         }
 
@@ -599,6 +720,9 @@
             const enabled = document.getElementById('tts-enabled').checked;
             const rate = document.getElementById('tts-rate').value;
             const volume = document.getElementById('tts-volume').value;
+            const stt_engine = document.getElementById('stt-engine').value;
+            const tg_voice_enabled = document.getElementById('tg-voice-enabled').checked;
+            
             try {
                 await fetch('/api/config', {
                     method: 'POST',
@@ -606,7 +730,9 @@
                     body: JSON.stringify({
                         tts_enabled: enabled,
                         tts_rate: parseInt(rate),
-                        tts_volume: parseFloat(volume)
+                        tts_volume: parseFloat(volume),
+                        stt_engine: stt_engine,
+                        tg_voice_enabled: tg_voice_enabled
                     })
                 });
                 const status = document.getElementById('tts-status');
