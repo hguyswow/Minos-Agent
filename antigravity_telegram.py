@@ -22,7 +22,7 @@ def get_bot_config():
     config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
     if os.path.exists(config_file):
         try:
-            with open(config_file, 'r', encoding='utf-8') as f:
+            with open(config_file, 'r', encoding='utf-8-sig') as f:
                 return json.load(f)
         except: pass
     return {}
