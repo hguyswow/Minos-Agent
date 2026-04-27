@@ -6,8 +6,10 @@ import os
 
 try:
     import pyttsx3
+    import pythoncom
 except ImportError:
     pyttsx3 = None
+    pythoncom = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -28,6 +30,8 @@ class TTSEngine:
         
     def _worker(self):
         if not pyttsx3: return
+        if pythoncom:
+            pythoncom.CoInitialize()
         engine = pyttsx3.init()
         while True:
             item = self.q.get()
