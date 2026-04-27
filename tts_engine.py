@@ -3,6 +3,17 @@ import queue
 import re
 import json
 import os
+import asyncio
+import tempfile
+
+try:
+    import edge_tts
+    import pygame
+    pygame.mixer.init()
+    EDGE_TTS_AVAILABLE = True
+except ImportError:
+    EDGE_TTS_AVAILABLE = False
+
 
 try:
     import pyttsx3
@@ -37,12 +48,35 @@ class TTSEngine:
             item = self.q.get()
             if item is None:
                 break
-            text, rate, volume = item
+            text, rate, volume, engine_type, voice = item
             try:
-                engine.setProperty('rate', rate)
-                engine.setProperty('volume', volume)
-                engine.say(text)
-                engine.runAndWait()
+                if engine_type == "edge" and EDGE_TTS_AVAILABLE:
+                    # edge-tts 처리
+                    async def play_edge():
+                        # volume / rate 는 edge-tts 에서 지원하는 파라미터가 있지만 심플하게 voice만 우선 적용
+                        communicate = edge_tts.Communicate(text, voice)
+                        fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
+                        os.close(fd)
+                        await communicate.save(temp_audio)
+                        
+                        pygame.mixer.music.load(temp_audio)
+                        pygame.mixer.music.set_volume(volume)
+                        pygame.mixer.music.play()
+                        while pygame.mixer.music.get_busy():
+                            pygame.time.Clock().tick(10)
+                        pygame.mixer.music.unload()
+                        try:
+                            os.remove(temp_audio)
+                        except: pass
+                    
+                    asyncio.run(play_edge())
+                else:
+                    # 기존 pyttsx3 처리
+                    if not pyttsx3: raise Exception("pyttsx3 not installed")
+                    engine.setProperty('rate', rate)
+                    engine.setProperty('volume', volume)
+                    engine.say(text)
+                    engine.runAndWait()
             except Exception as e:
                 print(f"TTS Error: {e}")
             finally:
@@ -58,11 +92,13 @@ class TTSEngine:
             
         rate = current_config.get("tts_rate", 180)
         volume = float(current_config.get("tts_volume", 1.0))
+        engine_type = current_config.get("tts_engine", "pyttsx3")
+        voice = current_config.get("tts_voice", "ko-KR-SunHiNeural")
 
         # 스피치용 텍스트 클리닝 (태그 및 마크다운 제거)
         clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
         clean_text = re.sub(r'[*_`~]', '', clean_text)
         if clean_text.strip():
-            self.q.put((clean_text.strip(), rate, volume))
+            self.q.put((clean_text.strip(), rate, volume, engine_type, voice))
 
 tts = TTSEngine()

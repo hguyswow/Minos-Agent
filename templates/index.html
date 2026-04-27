@@ -613,6 +613,22 @@
                         </div>
                         <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
                         <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 출력 엔진 (TTS)</span>
+                            <select id="tts-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="edge">고음질 AI 목소리 (Edge Neural)</option>
+                                <option value="pyttsx3">기본 기계음 (로컬 오프라인)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🗣️ 알쫑이 목소리 선택</span>
+                            <select id="tts-voice" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="ko-KR-SunHiNeural">SunHi (여성/밝음)</option>
+                                <option value="ko-KR-InJoonNeural">InJoon (남성/차분)</option>
+                                <option value="ko-KR-HyunsuNeural">Hyunsu (남성/활기참)</option>
+                            </select>
+                        </div>
+                        <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
                             <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 인식 엔진 (STT)</span>
                             <select id="stt-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
                                 <option value="google">Google 무료망 (빠름)</option>
@@ -893,6 +909,9 @@
                     document.getElementById('tts-volume').value = data.tts_volume;
                     document.getElementById('tts-volume-val').innerText = Math.round(data.tts_volume * 100);
                 }
+                if(data.tts_engine) document.getElementById('tts-engine').value = data.tts_engine;
+                if(data.tts_voice) document.getElementById('tts-voice').value = data.tts_voice;
+                
                 if(data.stt_engine) document.getElementById('stt-engine').value = data.stt_engine;
                 if(data.tg_voice_enabled !== undefined) document.getElementById('tg-voice-enabled').checked = data.tg_voice_enabled;
             } catch(e) { console.error(e); }
@@ -902,6 +921,8 @@
             const enabled = document.getElementById('tts-enabled').checked;
             const rate = document.getElementById('tts-rate').value;
             const volume = document.getElementById('tts-volume').value;
+            const tts_engine = document.getElementById('tts-engine').value;
+            const tts_voice = document.getElementById('tts-voice').value;
             const stt_engine = document.getElementById('stt-engine').value;
             const tg_voice_enabled = document.getElementById('tg-voice-enabled').checked;
             
@@ -913,6 +934,8 @@
                         tts_enabled: enabled,
                         tts_rate: parseInt(rate),
                         tts_volume: parseFloat(volume),
+                        tts_engine: tts_engine,
+                        tts_voice: tts_voice,
                         stt_engine: stt_engine,
                         tg_voice_enabled: tg_voice_enabled
                     })

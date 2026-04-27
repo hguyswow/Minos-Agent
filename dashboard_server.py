@@ -413,6 +413,8 @@ def handle_config():
         if 'tts_enabled' in data: config['tts_enabled'] = data['tts_enabled']
         if 'tts_volume' in data: config['tts_volume'] = float(data['tts_volume'])
         if 'tts_rate' in data: config['tts_rate'] = int(data['tts_rate'])
+        if 'tts_engine' in data: config['tts_engine'] = data['tts_engine']
+        if 'tts_voice' in data: config['tts_voice'] = data['tts_voice']
         if 'stt_engine' in data: config['stt_engine'] = data['stt_engine']
         if 'tg_voice_enabled' in data: config['tg_voice_enabled'] = data['tg_voice_enabled']
         
