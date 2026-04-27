@@ -389,7 +389,7 @@ def handle_config():
         config = {}
         if os.path.exists(config_file):
             try:
-                with open(config_file, 'r', encoding='utf-8') as f:
+                with open(config_file, 'r', encoding='utf-8-sig') as f:
                     config = json.load(f)
             except: pass
         return jsonify(config)
@@ -399,7 +399,7 @@ def handle_config():
         config = {}
         if os.path.exists(config_file):
             try:
-                with open(config_file, 'r', encoding='utf-8') as f:
+                with open(config_file, 'r', encoding='utf-8-sig') as f:
                     config = json.load(f)
             except: pass
             
