@@ -209,6 +209,46 @@ def toggle_skill():
     
     return jsonify({"success": True})
 
+@app.route('/api/editor/read', methods=['GET'])
+def editor_read():
+    file_type = request.args.get('type') # 'skill' or 'tentacle'
+    file_name = request.args.get('name')
+    
+    if not file_name or '..' in file_name or '/' in file_name or '\\' in file_name:
+        return jsonify({"error": "Invalid file name"}), 400
+        
+    target_dir = os.path.join(BASE_DIR, "skill_system", "skills") if file_type == 'skill' else os.path.join(BASE_DIR, "tentacles")
+    file_path = os.path.join(target_dir, file_name)
+    
+    if not os.path.exists(file_path):
+        return jsonify({"error": "File not found"}), 404
+        
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+        
+    return jsonify({"content": content})
+
+@app.route('/api/editor/save', methods=['POST'])
+def editor_save():
+    data = request.json
+    file_type = data.get('type')
+    file_name = data.get('name')
+    content = data.get('content')
+    
+    if not file_name or '..' in file_name or '/' in file_name or '\\' in file_name:
+        return jsonify({"success": False, "error": "Invalid file name"})
+        
+    target_dir = os.path.join(BASE_DIR, "skill_system", "skills") if file_type == 'skill' else os.path.join(BASE_DIR, "tentacles")
+    file_path = os.path.join(target_dir, file_name)
+    
+    if not os.path.exists(file_path):
+        return jsonify({"success": False, "error": "File not found"})
+        
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+        
+    return jsonify({"success": True})
+
 @app.route('/api/memory')
 def get_memory():
     chat_id = get_main_chat_id()

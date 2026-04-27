@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minos AI Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -396,6 +400,44 @@
             visibility: visible;
             opacity: 1;
             transform: translateY(0);
+        }
+
+        /* Editor Modal Styles */
+        #modal-editor-content {
+            width: 95%;
+            max-width: 1000px;
+            height: 90vh;
+            max-height: 90vh;
+        }
+        .CodeMirror {
+            height: calc(100% - 20px);
+            border-radius: 8px;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .editor-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        .edit-btn {
+            background-color: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+        .edit-btn:hover { background-color: var(--accent); color: white; }
+
+        .contact-tooltip::after {
+            opacity: 1;
+            transform: translateY(0);
             pointer-events: auto;
         }
     </style>
@@ -590,8 +632,101 @@
             </div>
         </div>
     </div>
+    
+    <!-- Code Editor Modal (Separate from sidebar modals) -->
+    <div class="modal-overlay" id="modal-editor-overlay" onclick="closeEditorModal(event)">
+        <div class="modal-content" id="modal-editor-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="editor-title">📝 Code Editor</h2>
+                <button class="modal-close" onclick="closeEditorModal(event)">&times;</button>
+            </div>
+            <div class="modal-body" style="flex-grow: 1; display: flex; flex-direction: column;">
+                <div style="flex-grow: 1; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                    <textarea id="code-editor"></textarea>
+                </div>
+                <div class="editor-footer">
+                    <span id="editor-status" style="color:var(--success); font-size:12px; margin-right: 15px; align-self: center; display:none;">저장되었습니다!</span>
+                    <button class="save" onclick="saveEditorCode()" style="padding: 8px 20px;">저장 (Save)</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+        let editorInstance = null;
+        let currentEditFile = { type: null, name: null };
+
+        function openEditorModal(type, name) {
+            document.getElementById('modal-editor-overlay').style.display = 'flex';
+            document.getElementById('editor-title').innerText = `📝 Editing: ${name}`;
+            document.getElementById('editor-status').style.display = 'none';
+            
+            if (!editorInstance) {
+                editorInstance = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                    mode: "python",
+                    theme: "dracula",
+                    lineNumbers: true,
+                    indentUnit: 4,
+                    matchBrackets: true
+                });
+                editorInstance.setSize("100%", "100%");
+            }
+            
+            currentEditFile = { type, name };
+            editorInstance.setValue("Loading...");
+            
+            fetch(`/api/editor/read?type=${type}&name=${name}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) editorInstance.setValue("# Error: " + data.error);
+                    else {
+                        editorInstance.setValue(data.content);
+                        setTimeout(() => editorInstance.refresh(), 100);
+                    }
+                })
+                .catch(err => editorInstance.setValue("# Network error loading file"));
+        }
+
+        function closeEditorModal(e) {
+            if (e.target.id === 'modal-editor-overlay' || e.target.classList.contains('modal-close')) {
+                document.getElementById('modal-editor-overlay').style.display = 'none';
+            }
+        }
+
+        async function saveEditorCode() {
+            if(!currentEditFile.name) return;
+            
+            const content = editorInstance.getValue();
+            const btn = document.querySelector('.editor-footer .save');
+            btn.innerText = "저장 중...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/editor/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: currentEditFile.type,
+                        name: currentEditFile.name,
+                        content: content
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    const status = document.getElementById('editor-status');
+                    status.style.display = 'inline';
+                    setTimeout(() => status.style.display = 'none', 3000);
+                } else {
+                    alert("저장 실패: " + data.error);
+                }
+            } catch (err) {
+                alert("저장 중 오류가 발생했습니다.");
+            } finally {
+                btn.innerText = "저장 (Save)";
+                btn.disabled = false;
+            }
+        }
         // --- Sidebar Resize Logic ---
         const resizer = document.getElementById('resizer');
         const sidebar = document.querySelector('.sidebar');
@@ -856,7 +991,10 @@
                     const btnText = t.is_on ? 'ON' : 'OFF';
                     div.innerHTML = `
                         <span style="font-size:12px;">${t.name}</span>
-                        <button class="${btnClass}" onclick="toggleTentacle('${t.name}')">${btnText}</button>
+                        <div>
+                            <button class="edit-btn" onclick="openEditorModal('tentacle', '${t.name}')">📝 Edit</button>
+                            <button class="${btnClass}" onclick="toggleTentacle('${t.name}')">${btnText}</button>
+                        </div>
                     `;
                     tList.appendChild(div);
                 });
@@ -871,7 +1009,10 @@
                     const btnText = s.is_auto ? 'AUTO' : 'MANUAL';
                     div.innerHTML = `
                         <span style="font-size:12px;">${s.name}</span>
-                        <button class="${btnClass}" onclick="toggleSkill('${s.name}')">${btnText}</button>
+                        <div>
+                            <button class="edit-btn" onclick="openEditorModal('skill', '${s.name}')">📝 Edit</button>
+                            <button class="${btnClass}" onclick="toggleSkill('${s.name}')">${btnText}</button>
+                        </div>
                     `;
                     sList.appendChild(div);
                 });
