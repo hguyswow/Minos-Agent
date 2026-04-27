@@ -404,10 +404,18 @@ def handle_config():
         data = request.json
         config = {}
         if os.path.exists(config_file):
-            try:
-                with open(config_file, 'r', encoding='utf-8-sig') as f:
-                    config = json.load(f)
-            except: pass
+            for attempt in range(3):
+                try:
+                    with open(config_file, 'r', encoding='utf-8-sig') as f:
+                        content = f.read()
+                        if content.strip():
+                            config = json.loads(content)
+                        break
+                except Exception as e:
+                    import time
+                    time.sleep(0.1)
+                    if attempt == 2:
+                        return jsonify({"error": "Config is busy"}), 500
             
         config['telegram_token'] = data.get('telegram_token', config.get('telegram_token', ''))
         if 'tts_enabled' in data: config['tts_enabled'] = data['tts_enabled']
@@ -418,8 +426,17 @@ def handle_config():
         if 'stt_engine' in data: config['stt_engine'] = data['stt_engine']
         if 'tg_voice_enabled' in data: config['tg_voice_enabled'] = data['tg_voice_enabled']
         
-        with open(config_file, 'w', encoding='utf-8-sig') as f:
-            json.dump(config, f, indent=4, ensure_ascii=False)
+        import tempfile
+        import shutil
+        temp_file = config_file + ".tmp"
+        try:
+            with open(temp_file, 'w', encoding='utf-8-sig') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            shutil.move(temp_file, config_file)
+        except Exception as e:
+            if os.path.exists(temp_file): os.remove(temp_file)
+            return jsonify({"error": "Failed to write config"}), 500
+            
         return jsonify({"success": True})
 
 @app.route('/api/config/reset', methods=['POST'])

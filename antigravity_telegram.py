@@ -795,8 +795,8 @@ def main():
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
     try:
-        # 타임아웃 방지를 위해 run_polling에도 명시적 설정 추가
-        application.run_polling(drop_pending_updates=True, timeout=60, read_timeout=60)
+        # 타임아웃 방지를 위해 run_polling에도 명시적 설정 추가 (read_timeout 제외)
+        application.run_polling(drop_pending_updates=True)
     except Exception as e:
         print(f"\n[치명적 오류] 텔레그램 서버 통신 중 오류가 발생하여 종료됩니다: {e}")
 
