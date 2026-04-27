@@ -439,6 +439,11 @@
             <span>📦 Environment Setup</span>
             <span>▶</span>
         </button>
+
+        <button class="menu-btn" onclick="openModal('modal-tts', '🔊 TTS (음성 출력)')">
+            <span>🔊 TTS (음성 출력)</span>
+            <span>▶</span>
+        </button>
         
         <div class="panel" style="border-color: var(--danger);">
             <h3 style="color: var(--danger);">Error Logs</h3>
@@ -526,6 +531,28 @@
                         <div id="pull-status" style="color:var(--success); font-size:13px; margin-top:10px; text-align:center; display:none;">요청 완료!</div>
                     </div>
                 </div>
+
+                <!-- TTS Modal -->
+                <div id="modal-tts" style="display:none;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🔊 알쫑이 목소리 출력</span>
+                            <label class="switch">
+                                <input type="checkbox" id="tts-enabled" onchange="saveTTSConfig()">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label for="tts-rate" style="display:block; margin-bottom:5px;">말하기 속도 (<span id="tts-rate-val">180</span> wpm)</label>
+                            <input type="range" id="tts-rate" min="100" max="300" step="10" value="180" style="width:100%;" onchange="saveTTSConfig()" oninput="document.getElementById('tts-rate-val').innerText=this.value">
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label for="tts-volume" style="display:block; margin-bottom:5px;">볼륨 (<span id="tts-volume-val">100</span>%)</label>
+                            <input type="range" id="tts-volume" min="0" max="1" step="0.1" value="1.0" style="width:100%;" onchange="saveTTSConfig()" oninput="document.getElementById('tts-volume-val').innerText=Math.round(this.value*100)">
+                        </div>
+                        <div id="tts-status" style="color:var(--success); font-size:11px; margin-top:15px; text-align:center; display:none;">설정이 저장되었습니다!</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -536,6 +563,7 @@
             document.getElementById('modal-tentacles').style.display = 'none';
             document.getElementById('modal-skills').style.display = 'none';
             document.getElementById('modal-env').style.display = 'none';
+            document.getElementById('modal-tts').style.display = 'none';
             
             document.getElementById(targetId).style.display = 'block';
             document.getElementById('modal-overlay').style.display = 'flex';
@@ -555,6 +583,35 @@
                 if(data.telegram_token) {
                     document.getElementById('tg-token').value = data.telegram_token;
                 }
+                if(data.tts_enabled !== undefined) document.getElementById('tts-enabled').checked = data.tts_enabled;
+                if(data.tts_rate !== undefined) {
+                    document.getElementById('tts-rate').value = data.tts_rate;
+                    document.getElementById('tts-rate-val').innerText = data.tts_rate;
+                }
+                if(data.tts_volume !== undefined) {
+                    document.getElementById('tts-volume').value = data.tts_volume;
+                    document.getElementById('tts-volume-val').innerText = Math.round(data.tts_volume * 100);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveTTSConfig() {
+            const enabled = document.getElementById('tts-enabled').checked;
+            const rate = document.getElementById('tts-rate').value;
+            const volume = document.getElementById('tts-volume').value;
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        tts_enabled: enabled,
+                        tts_rate: parseInt(rate),
+                        tts_volume: parseFloat(volume)
+                    })
+                });
+                const status = document.getElementById('tts-status');
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
             } catch(e) { console.error(e); }
         }
 

@@ -92,7 +92,16 @@ def save_user_state(state):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
+    has_token = False
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8-sig') as f:
+                config = json.load(f)
+                if config.get('telegram_token'):
+                    has_token = True
+        except: pass
+    return render_template('index.html', has_token=has_token)
 
 @app.route('/api/status')
 def get_status():
@@ -302,7 +311,11 @@ def handle_config():
                     config = json.load(f)
             except: pass
             
-        config['telegram_token'] = data.get('telegram_token', '')
+        config['telegram_token'] = data.get('telegram_token', config.get('telegram_token', ''))
+        if 'tts_enabled' in data: config['tts_enabled'] = data['tts_enabled']
+        if 'tts_volume' in data: config['tts_volume'] = float(data['tts_volume'])
+        if 'tts_rate' in data: config['tts_rate'] = int(data['tts_rate'])
+        
         with open(config_file, 'w', encoding='utf-8-sig') as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
         return jsonify({"success": True})

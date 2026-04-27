@@ -14,7 +14,7 @@ wmic process where "name='python.exe' and commandline like '%%dashboard_server%%
 timeout /t 2 /nobreak > nul
 
 echo [2/3] Checking python packages...
-pip install -q flask psutil requests gputil
+pip install -q flask psutil requests gputil pyttsx3
 
 echo [3/3] Launching Modules...
 cd /d "%~dp0"

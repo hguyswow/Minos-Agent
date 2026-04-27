@@ -10,6 +10,12 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import telegram.error
 
 import sys
+import threading
+import queue
+try:
+    import pyttsx3
+except ImportError:
+    pyttsx3 = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
@@ -30,6 +36,52 @@ def get_bot_config():
 bot_config = get_bot_config()
 TELEGRAM_TOKEN = bot_config.get("telegram_token", "")
 LLAMA_URL = 'http://127.0.0.1:11434/v1/chat/completions'
+TTS_ENABLED = bot_config.get("tts_enabled", False)
+TTS_VOLUME = bot_config.get("tts_volume", 1.0)
+TTS_RATE = bot_config.get("tts_rate", 180)
+
+class TTSEngine:
+    def __init__(self):
+        self.q = queue.Queue()
+        self.thread = threading.Thread(target=self._worker, daemon=True)
+        self.thread.start()
+        
+    def _worker(self):
+        if not pyttsx3: return
+        engine = pyttsx3.init()
+        while True:
+            item = self.q.get()
+            if item is None:
+                break
+            text, rate, volume = item
+            try:
+                engine.setProperty('rate', rate)
+                engine.setProperty('volume', volume)
+                engine.say(text)
+                engine.runAndWait()
+            except Exception as e:
+                print(f"TTS Error: {e}")
+            finally:
+                self.q.task_done()
+
+    def speak(self, text):
+        if not pyttsx3:
+            return
+            
+        current_config = get_bot_config()
+        if not current_config.get("tts_enabled", False):
+            return
+            
+        rate = current_config.get("tts_rate", 180)
+        volume = float(current_config.get("tts_volume", 1.0))
+
+        # 스피치용 텍스트 클리닝 (태그 및 마크다운 제거)
+        clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+        clean_text = re.sub(r'[*_`~]', '', clean_text)
+        if clean_text.strip():
+            self.q.put((clean_text.strip(), rate, volume))
+
+tts = TTSEngine()
 
 # 기억력 엔진 및 스킬 시스템 초기화
 memory = MemoryEngine(memory_dir=os.path.join(BASE_DIR, "memory_logs"), max_working_memory=30)
@@ -500,6 +552,9 @@ async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE
             
             # 봇의 최종 답변 저장
             memory.add_message(chat_id=chat_id, role="assistant", content=reply_text)
+            
+            # 음성 출력 (TTS)
+            tts.speak(reply_text)
             
             # --- [스킬 학습 처리부: <SAVE_SKILL> 태그 감지] ---
             skill_match = re.search(r'<SAVE_SKILL name="(.*?)" desc="(.*?)">(.*?)</SAVE_SKILL>', reply_text, re.IGNORECASE | re.DOTALL)
