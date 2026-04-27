@@ -736,8 +736,8 @@ def main():
     
     print('준비 완료! (에이전트 루프 및 기억 엔진 가동 중...)')
     try:
-        # 타임아웃 값을 명시적으로 부여하여 통신 지연 시 튕김 방지
-        application.run_polling(drop_pending_updates=True, timeout=30, read_timeout=30)
+        # 타임아웃 값은 빌더에서 설정 완료됨
+        application.run_polling(drop_pending_updates=True)
     except Exception as e:
         print(f"\n[치명적 오류] 텔레그램 서버 통신 중 오류가 발생하여 종료됩니다: {e}")
 
