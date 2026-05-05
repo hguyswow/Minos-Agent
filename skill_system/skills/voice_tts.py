@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: voice_tts
+# AGENT_SKILL_DESC: 텍스트를 음성으로 변환하여 스피커로 재생합니다. 한국어와 영어를 지원합니다.
+# AGENT_SKILL_ARGS: text(str) - 읽어줄 텍스트, lang(str) - ko/en
+# AGENT_SKILL_RETURNS: 음성 재생 완료 메시지
 import sys
 import os
 import asyncio

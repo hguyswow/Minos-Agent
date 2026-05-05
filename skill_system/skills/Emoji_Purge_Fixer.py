@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Emoji_Purge_Fixer
+# AGENT_SKILL_DESC: 파이썬 소스 파일에서 이모지와 특수문자를 제거하거나 안전한 텍스트로 교체합니다. 인코딩 오류 방지용.
+# AGENT_SKILL_ARGS: file_path(str) - 처리할 파이썬 파일 경로
+# AGENT_SKILL_RETURNS: 처리 완료 메시지 및 수정된 항목 수
 import sys
 import os
 import glob

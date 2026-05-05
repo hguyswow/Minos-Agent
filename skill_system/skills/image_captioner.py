@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: image_captioner
+# AGENT_SKILL_DESC: 이미지 파일을 분석하여 내용을 텍스트로 설명합니다. AI 비전 모델을 활용합니다.
+# AGENT_SKILL_ARGS: image_path(str) - 이미지 파일 경로
+# AGENT_SKILL_RETURNS: 이미지 내용 설명
 #
 # image_captioner: 이미지 파일 경로를 받아 Ollama의 비전 모델(gemma4-e4b 또는 llava)로 이미지 내용을 설명합니다.
 # 사용 예: <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\image_captioner.py "C:\path\to\image.jpg"</CMD>

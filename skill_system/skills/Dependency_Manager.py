@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Dependency_Manager
+# AGENT_SKILL_DESC: 파이썬 패키지를 설치, 업데이트, 제거합니다. pip를 통한 패키지 관리를 지원합니다.
+# AGENT_SKILL_ARGS: action(str) - install/uninstall/update, package(str) - 패키지 이름
+# AGENT_SKILL_RETURNS: 패키지 관리 결과 메시지
 """
 스킬명: Dependency_Manager
 기능: pip 패키지 설치/업그레이드/requirements.txt 생성 및 현재 설치 목록 조회

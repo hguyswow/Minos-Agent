@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: clipboard_manager
+# AGENT_SKILL_DESC: 클립보드 내용을 읽거나 새 텍스트를 클립보드에 복사합니다.
+# AGENT_SKILL_ARGS: action(str) - read/write, text(str) - 복사할 텍스트(write 시)
+# AGENT_SKILL_RETURNS: 현재 클립보드 내용 또는 복사 완료 메시지
 import sys
 import pyperclip
 

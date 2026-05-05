@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: todo_note
+# AGENT_SKILL_DESC: 할 일 목록(TODO)을 추가, 조회, 완료 처리합니다. 메모나 간단한 작업 관리에 활용합니다.
+# AGENT_SKILL_ARGS: action(str) - add/list/done/delete, item(str) - 할 일 내용(add 시)
+# AGENT_SKILL_RETURNS: TODO 목록 또는 처리 결과
 import sys
 import os
 import datetime

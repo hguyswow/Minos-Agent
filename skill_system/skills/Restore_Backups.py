@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Restore_Backups
+# AGENT_SKILL_DESC: 백업된 파일을 원래 위치로 복원합니다. 파일 수정 실수 등 긴급 상황에서 롤백할 때 사용합니다.
+# AGENT_SKILL_ARGS: file_path(str) - 복원할 파일 경로
+# AGENT_SKILL_RETURNS: 복원 성공/실패 메시지
 import shutil
 import os
 

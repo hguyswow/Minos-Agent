@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: wiki_search
+# AGENT_SKILL_DESC: 위키피디아에서 특정 주제를 검색하여 요약 정보를 반환합니다. 인물, 사건, 개념 등 백과사전적 정보 조회에 적합합니다.
+# AGENT_SKILL_ARGS: query(str) - 검색할 주제 또는 키워드
+# AGENT_SKILL_RETURNS: 위키피디아 요약 내용 및 링크
 import sys
 import io
 import requests

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Git_Manager
+# AGENT_SKILL_DESC: Git 저장소를 관리합니다. 커밋, 푸시, 상태 확인 등 Git 작업을 수행합니다.
+# AGENT_SKILL_ARGS: action(str) - status/commit/push, message(str) - 커밋 메시지(commit 시)
+# AGENT_SKILL_RETURNS: Git 작업 결과
 """
 스킬명: Git_Manager
 기능: git diff 분석 및 자동 커밋, 백업(stash) 수행

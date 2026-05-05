@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Multi_File_Editor
+# AGENT_SKILL_DESC: 여러 파일을 한 번에 읽거나 수정합니다. 파일 목록과 변경 내용을 전달하면 일괄 처리합니다.
+# AGENT_SKILL_ARGS: files(list) - 파일 경로 목록, action(str) - read/write/append
+# AGENT_SKILL_RETURNS: 파일 처리 결과
 """
 스킬명: Multi_File_Editor
 기능: 특정 폴더/확장자에서 파일을 검색하여 일괄 찾기&바꾸기 수행

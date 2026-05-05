@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: process_manager
+# AGENT_SKILL_DESC: 실행 중인 프로세스를 조회하거나 종료합니다. CPU/메모리를 많이 사용하는 프로세스 관리에 활용합니다.
+# AGENT_SKILL_ARGS: action(str) - list/kill, process_name(str) - 프로세스명(kill 시)
+# AGENT_SKILL_RETURNS: 프로세스 목록 또는 종료 결과
 import sys
 import psutil
 

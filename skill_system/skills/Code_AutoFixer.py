@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Code_AutoFixer
+# AGENT_SKILL_DESC: 파이썬 코드의 문법 오류나 버그를 자동으로 탐지하고 수정합니다. 오류 메시지와 함께 코드를 전달하면 수정된 코드를 반환합니다.
+# AGENT_SKILL_ARGS: code(str) - 수정할 코드, error_msg(str) - 발생한 오류 메시지
+# AGENT_SKILL_RETURNS: 수정된 코드 및 변경 사항 설명
 """
 스킬명: Code_AutoFixer
 기능: Python 파일에 autopep8/black으로 자동 포매팅 + isort로 임포트 정리

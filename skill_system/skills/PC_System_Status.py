@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: PC_System_Status
+# AGENT_SKILL_DESC: 현재 PC의 CPU 사용률, RAM 사용량, 디스크 공간, GPU 온도 등 시스템 상태를 조회합니다.
+# AGENT_SKILL_ARGS: 없음 (인수 불필요)
+# AGENT_SKILL_RETURNS: CPU%, RAM%, 디스크%, GPU 온도 등 시스템 리소스 현황
 """
 [스킬 이름]: PC_System_Status
 [용도]: 현재 윈도우 PC의 CPU, 메모리(RAM) 사용량, 디스크 여유 공간을 빠르게 요약하여 출력합니다.

@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: code_validator
+# AGENT_SKILL_DESC: 파이썬 코드의 문법 오류를 검사합니다. 파일 경로 또는 코드 문자열을 받아 유효성을 확인합니다.
+# AGENT_SKILL_ARGS: code_or_path(str) - 검사할 코드 또는 파일 경로
+# AGENT_SKILL_RETURNS: 문법 오류 여부 및 오류 위치
 import sys
 import os
 import py_compile

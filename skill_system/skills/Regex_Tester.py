@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Regex_Tester
+# AGENT_SKILL_DESC: 정규식 패턴을 테스트합니다. 패턴과 테스트 문자열을 주면 매칭 결과를 반환합니다.
+# AGENT_SKILL_ARGS: pattern(str) - 정규식 패턴, text(str) - 테스트할 문자열
+# AGENT_SKILL_RETURNS: 매칭 결과 및 캡처 그룹
 """
 스킬명: Regex_Tester
 기능: 정규식 패턴과 대상 문자열을 받아 매칭 결과 및 그룹을 상세 출력

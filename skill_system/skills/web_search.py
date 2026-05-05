@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: web_search
+# AGENT_SKILL_DESC: 인터넷에서 정보를 검색합니다. 최신 뉴스, 날씨, 가격, 일반 지식 등 실시간 정보 조회에 사용합니다.
+# AGENT_SKILL_ARGS: query(str) - 검색할 키워드 또는 질문
+# AGENT_SKILL_RETURNS: 검색 결과 요약 및 출처 링크
 import sys
 import io
 import warnings

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: push_notify
+# AGENT_SKILL_DESC: 텔레그램이나 다른 채널로 즉시 푸시 알림을 전송합니다.
+# AGENT_SKILL_ARGS: message(str) - 전송할 메시지
+# AGENT_SKILL_RETURNS: 전송 성공/실패 결과
 #
 # push_notify: 알쫑이가 스스로 형님의 텔레그램으로 메시지를 직접 발송할 때 사용하는 스킬입니다.
 # 긴급 알림, 작업 완료 보고, 자율 메시지 등에 활용합니다.

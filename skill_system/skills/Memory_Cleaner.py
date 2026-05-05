@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Memory_Cleaner
+# AGENT_SKILL_DESC: AI 대화 기억(단기/장기)을 정리하고 오래된 메모리를 삭제합니다. 메모리 공간이 부족할 때 사용합니다.
+# AGENT_SKILL_ARGS: target(str) - short/long/all (정리 대상)
+# AGENT_SKILL_RETURNS: 정리된 메모리 항목 수 및 결과
 """
 스킬명: Memory_Cleaner
 기능: memory_logs 디렉터리를 스캔하여 깨진 JSON, 중복 대화,

@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: tentacle_manager
+# AGENT_SKILL_DESC: 문어발(tentacle) 스크립트를 관리합니다. 목록 조회, 활성화/비활성화, 즉시 실행 기능을 제공합니다.
+# AGENT_SKILL_ARGS: action(str) - list/enable/disable/run, tentacle_name(str) - 대상 문어발명
+# AGENT_SKILL_RETURNS: 문어발 목록 또는 실행 결과
 import os
 import sys
 

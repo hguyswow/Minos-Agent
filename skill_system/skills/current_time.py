@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: current_time
+# AGENT_SKILL_DESC: 현재 날짜와 시간을 반환합니다. 요일, 시간대 정보도 포함됩니다.
+# AGENT_SKILL_ARGS: 없음
+# AGENT_SKILL_RETURNS: 현재 날짜/시간/요일/시간대
 import sys
 import datetime
 

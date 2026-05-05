@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Vision_UI_Analyzer
+# AGENT_SKILL_DESC: 스크린샷 이미지를 분석하여 UI 구성 요소를 파악하고 설명합니다. 화면 자동화 계획 수립에 활용합니다.
+# AGENT_SKILL_ARGS: image_path(str) - 분석할 스크린샷 파일 경로
+# AGENT_SKILL_RETURNS: UI 요소 분석 결과 및 자동화 제안
 """
 스킬명: Vision_UI_Analyzer
 기능: 이미지 경로(스크린샷)를 받아 멀티모달 프롬프트를 전송해 분석

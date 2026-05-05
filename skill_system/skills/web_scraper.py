@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: web_scraper
+# AGENT_SKILL_DESC: 웹 페이지의 특정 요소를 스크래핑합니다. CSS 셀렉터나 키워드로 원하는 데이터를 추출합니다.
+# AGENT_SKILL_ARGS: url(str) - 대상 URL, selector(str) - CSS 셀렉터 또는 키워드
+# AGENT_SKILL_RETURNS: 추출된 텍스트 또는 데이터
 import sys
 import io
 import requests

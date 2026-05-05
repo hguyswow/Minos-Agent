@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: gui_output_engine
+# AGENT_SKILL_DESC: 텍스트나 데이터를 GUI 팝업 창으로 표시합니다. 중요한 알림을 화면에 직접 띄울 때 사용합니다.
+# AGENT_SKILL_ARGS: message(str) - 표시할 메시지, title(str) - 창 제목
+# AGENT_SKILL_RETURNS: 창 표시 완료 메시지
 import sys
 import os
 import matplotlib.pyplot as plt

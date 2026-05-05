@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: fix_tentacle_encoding
+# AGENT_SKILL_DESC: 문어발(tentacle) 스크립트의 인코딩 문제를 수정합니다. CP949/UTF-8 변환 등 한글 깨짐 방지.
+# AGENT_SKILL_ARGS: file_path(str) - 수정할 파일 경로
+# AGENT_SKILL_RETURNS: 인코딩 수정 결과
 import os
 
 target_path = r"C:\ai\Antigravity_Memory_Engine\skill_system\skills\tentacle_manager.py"

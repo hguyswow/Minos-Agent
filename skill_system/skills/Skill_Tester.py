@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Skill_Tester
+# AGENT_SKILL_DESC: 특정 스킬을 테스트 인수로 실행하고 결과를 검증합니다. 스킬 개발 후 동작 확인 시 사용합니다.
+# AGENT_SKILL_ARGS: skill_name(str) - 테스트할 스킬 파일명, test_args(str) - 테스트 인수
+# AGENT_SKILL_RETURNS: 테스트 실행 결과 및 성공/실패 여부
 """
 스킬명: Skill_Tester
 기능: skills_index.txt에 등록된 스킬들을 테스트 인자로 실행하고

@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: local_file_reader
+# AGENT_SKILL_DESC: 로컬 파일 시스템의 파일을 읽어 내용을 반환합니다. 텍스트, JSON, 마크다운 등 다양한 형식 지원.
+# AGENT_SKILL_ARGS: file_path(str) - 읽을 파일의 절대 경로
+# AGENT_SKILL_RETURNS: 파일 내용 (텍스트)
 import sys
 import os
 

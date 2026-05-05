@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Prompt_Editor
+# AGENT_SKILL_DESC: AI 시스템 프롬프트(prompt.txt)를 읽거나 수정합니다. AI의 성격과 행동 지침을 업데이트할 때 사용합니다.
+# AGENT_SKILL_ARGS: action(str) - read/write, content(str) - 새 프롬프트 내용(write 시)
+# AGENT_SKILL_RETURNS: 현재 프롬프트 내용 또는 수정 완료 메시지
 """
 스킬명: Prompt_Editor
 기능: 자신의 시스템 프롬프트(prompt.txt)를 읽거나 수정하여

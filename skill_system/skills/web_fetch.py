@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: web_fetch
+# AGENT_SKILL_DESC: 웹 URL에서 HTML 또는 JSON 데이터를 가져옵니다. 로그인이 필요 없는 공개 페이지 내용을 조회합니다.
+# AGENT_SKILL_ARGS: url(str) - 가져올 웹 주소
+# AGENT_SKILL_RETURNS: 페이지 내용 또는 JSON 데이터
 #
 # web_fetch: URL을 받아 본문 텍스트만 깔끔하게 추출합니다. (HTML 태그 제거)
 # 사용 예: <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\web_fetch.py "https://example.com"</CMD>

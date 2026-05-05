@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Self_Code_Analyzer
+# AGENT_SKILL_DESC: 프로젝트 내 파이썬 코드를 분석하여 구조, 함수, 클래스 목록을 파악합니다. 코드 이해 및 리뷰에 활용합니다.
+# AGENT_SKILL_ARGS: file_path(str) - 분석할 파일 경로 또는 디렉토리
+# AGENT_SKILL_RETURNS: 코드 구조 분석 결과 (함수/클래스 목록, 복잡도 등)
 """
 스킬명: Self_Code_Analyzer
 기능: 알쫑이 자신의 핵심 소스 파일을 분석하여 TODO, 에러 핸들링 누락,

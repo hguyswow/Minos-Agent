@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Web_Automator
+# AGENT_SKILL_DESC: 웹 브라우저를 자동 제어합니다. URL 접속, 요소 클릭, 텍스트 입력 등 웹 자동화 작업을 수행합니다.
+# AGENT_SKILL_ARGS: url(str) - 접속할 URL, action(str) - click/type/screenshot
+# AGENT_SKILL_RETURNS: 자동화 작업 결과 및 스크린샷 경로
 """
 스킬명: Web_Automator
 기능: 브라우저 자동화 (동적 페이지 제어 및 데이터 추출)

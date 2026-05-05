@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Weather_API_Caller
+# AGENT_SKILL_DESC: 실시간 날씨 정보를 조회합니다. 도시명을 주면 현재 날씨, 기온, 습도를 반환합니다.
+# AGENT_SKILL_ARGS: city(str) - 도시명 (기본값: 서울)
+# AGENT_SKILL_RETURNS: 현재 기온, 날씨 상태, 습도, 풍속
 r"""
 Weather_API_Caller: wttr.in API를 이용하여 특정 지역의 현재 날씨, 체감온도, 강수확률, 내일 예보를 조회합니다.
 지역명은 한국어 또는 영어 모두 사용 가능합니다. 미입력 시 서울(Seoul) 기준으로 조회합니다.

@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: excel_reader
+# AGENT_SKILL_DESC: 엑셀(.xlsx, .xls) 또는 CSV 파일을 읽어 내용을 텍스트로 반환합니다.
+# AGENT_SKILL_ARGS: file_path(str) - 읽을 파일 경로, sheet(str) - 시트명(선택)
+# AGENT_SKILL_RETURNS: 파일 내용 (테이블 형식)
 #
 # excel_reader: 엑셀(.xlsx, .xls) 또는 CSV 파일 경로를 받아 내용을 요약하여 반환합니다.
 # 사용 예: <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\excel_reader.py "C:\path\to\file.xlsx"</CMD>

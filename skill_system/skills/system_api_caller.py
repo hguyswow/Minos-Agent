@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: system_api_caller
+# AGENT_SKILL_DESC: 운영체제 명령어나 PowerShell 스크립트를 실행합니다. 파일 작업, 시스템 설정 변경, 앱 실행 등에 사용합니다.
+# AGENT_SKILL_ARGS: command(str) - 실행할 명령어, shell(str) - cmd/powershell
+# AGENT_SKILL_RETURNS: 명령어 실행 결과 (stdout/stderr)
 import sys
 import ctypes
 

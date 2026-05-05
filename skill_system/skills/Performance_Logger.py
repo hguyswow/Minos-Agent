@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Performance_Logger
+# AGENT_SKILL_DESC: 시스템 성능 지표를 주기적으로 로그 파일에 기록합니다. 성능 추이 분석에 활용합니다.
+# AGENT_SKILL_ARGS: interval(int) - 기록 간격(초, 기본값:60)
+# AGENT_SKILL_RETURNS: 로그 파일 경로 및 최신 성능 수치
 """
 스킬명: Performance_Logger
 기능: 스킬 실행 결과, 응답 시간, 성공/실패율을 누적 로그로 기록하고

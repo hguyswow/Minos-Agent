@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: structured_data_parser
+# AGENT_SKILL_DESC: JSON, XML, CSV, YAML 등 구조화된 데이터를 파싱하여 읽기 쉬운 형태로 변환합니다.
+# AGENT_SKILL_ARGS: data(str) - 파싱할 데이터 또는 파일 경로, format(str) - json/xml/csv/yaml
+# AGENT_SKILL_RETURNS: 파싱된 데이터 내용
 import sys
 import os
 import pandas as pd

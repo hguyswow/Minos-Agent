@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: screen_ocr
+# AGENT_SKILL_DESC: 현재 화면(스크린샷)에서 텍스트를 OCR로 추출합니다. 복사 불가능한 화면의 텍스트를 읽을 때 유용합니다.
+# AGENT_SKILL_ARGS: region(str) - 캡처 영역 (선택, 기본값: 전체 화면)
+# AGENT_SKILL_RETURNS: 화면에서 인식된 텍스트
 import sys
 import pyautogui
 import pytesseract

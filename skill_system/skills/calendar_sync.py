@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: calendar_sync
+# AGENT_SKILL_DESC: 구글 캘린더에서 오늘 또는 이번 주 일정을 조회합니다. 최초 실행 시 브라우저 인증 필요.
+# AGENT_SKILL_ARGS: range(str) - today/week
+# AGENT_SKILL_RETURNS: 일정 목록 (제목, 시간, 장소)
 #
 # calendar_sync: 구글 캘린더(Google Calendar) API를 통해 오늘/이번 주 일정을 조회합니다.
 # 최초 실행 시 브라우저 인증이 필요합니다. credentials.json 파일이 필요합니다.

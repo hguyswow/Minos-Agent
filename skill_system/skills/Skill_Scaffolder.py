@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# AGENT_SKILL_NAME: Skill_Scaffolder
+# AGENT_SKILL_DESC: 새로운 스킬 파이썬 파일의 기본 템플릿을 생성합니다. 스킬 이름과 설명을 주면 뼈대 코드를 만들어줍니다.
+# AGENT_SKILL_ARGS: skill_name(str) - 스킬 이름, description(str) - 스킬 기능 설명
+# AGENT_SKILL_RETURNS: 생성된 스킬 파일 경로
 """
 스킬명: Skill_Scaffolder
 기능: 스킬 이름과 설명을 입력하면 표준 형식의 .py 스킬 뼈대와
