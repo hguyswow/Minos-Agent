@@ -109,7 +109,7 @@ start /min "Minos Telegram Bot" cmd /k "title Minos Telegram Bot & color 0E & se
 
 timeout /t 2 /nobreak >nul
 
-REM 백그라운드에서 창 자동 최소화 실행 (6초 후, 비동기)
+REM Auto-minimize windows in background after 6 seconds (async)
 start /b "" powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Minos-HideWindows.ps1" -DelaySeconds 6
 
 REM =====================================================
