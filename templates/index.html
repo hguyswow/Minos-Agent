@@ -505,8 +505,36 @@
                     <div style="border-top:1px solid #334155; margin:12px 0;"></div>
                     <div style="font-weight:600; color:var(--success); margin-bottom:8px;"
                          data-ko="☕ 개발자 후원" data-en="☕ Support the Developer">☕ 개발자 후원</div>
-                    <div style="margin-bottom:5px;">• <b>PayPal:</b> <a href="https://paypal.me/your-username" target="_blank" style="color:#60a5fa; text-decoration:none;">paypal.me/your-username</a></div>
-                    <div>• <b>KB 국민은행:</b> YOUR-BANK-ACCOUNT-NUMBER</div>
+
+                    <!-- PayPal -->
+                    <div style="margin-bottom:7px; display:flex; align-items:center; gap:8px;">
+                        <span>• <b>PayPal:</b></span>
+                        <a href="https://paypal.me/hguyswow" target="_blank"
+                           style="color:#60a5fa; text-decoration:none;">paypal.me/hguyswow</a>
+                        <button onclick="copyToClip('paypal.me/hguyswow', this)"
+                                style="font-size:10px; padding:2px 7px; background:#1e3a5f; color:#93c5fd;
+                                       border:1px solid #3b82f6; border-radius:4px; cursor:pointer;">복사</button>
+                    </div>
+
+                    <!-- 계좌번호 -->
+                    <div style="margin-bottom:7px; display:flex; align-items:center; gap:8px;">
+                        <span>• <b>KB 국민은행:</b></span>
+                        <span id="bank-account-display" style="color:#e2e8f0; font-family:monospace;">027210862460 강*호</span>
+                        <button onclick="copyToClip('027210862460', this)"
+                                style="font-size:10px; padding:2px 7px; background:#1e3a5f; color:#93c5fd;
+                                       border:1px solid #3b82f6; border-radius:4px; cursor:pointer;">복사</button>
+                    </div>
+
+                    <!-- 이메일 -->
+                    <div style="margin-bottom:7px; display:flex; align-items:center; gap:8px;">
+                        <span>• <b data-ko="이메일:" data-en="Email:">이메일:</b></span>
+                        <a id="contact-email-display" href="mailto:hguyswow@gmail.com"
+                           style="color:#60a5fa; text-decoration:none;">hguyswow@gmail.com</a>
+                        <button onclick="copyToClip('hguyswow@gmail.com', this)"
+                                style="font-size:10px; padding:2px 7px; background:#1e3a5f; color:#93c5fd;
+                                       border:1px solid #3b82f6; border-radius:4px; cursor:pointer;">복사</button>
+                    </div>
+
                     <div style="margin-top:14px; text-align:right;">
                         <button onclick="closeContactModal()" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:12px;"
                                 data-ko="닫기" data-en="Close">닫기</button>
@@ -1237,12 +1265,28 @@
         // 문의 모달 함수
         function openContactModal() {
             document.getElementById('contact-modal-overlay').style.display = 'flex';
-            applyLang(); // 현재 언어 적용
+            applyLang();
         }
         function closeContactModal(e) {
             if (!e || e.target.id === 'contact-modal-overlay') {
                 document.getElementById('contact-modal-overlay').style.display = 'none';
             }
+        }
+        // 클립보드 복사 헬퍼
+        function copyToClip(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerText;
+                btn.innerText = '✅';
+                btn.style.color = '#34d399';
+                setTimeout(() => { btn.innerText = orig; btn.style.color = '#93c5fd'; }, 1500);
+            }).catch(() => {
+                // 구형 브라우저 폴백
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.innerText = '✅'; setTimeout(() => { btn.innerText = '복사'; }, 1500);
+            });
         }
 
         // 스킬 설명 프리로드
