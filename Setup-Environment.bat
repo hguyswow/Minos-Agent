@@ -22,9 +22,14 @@ echo [2/4] Installing Ollama (if not exists)...
 winget install Ollama.Ollama --silent --accept-package-agreements --accept-source-agreements
 
 echo.
-echo 2. 파이썬 라이브러리 자동 설치 중...
+echo 2. Installing Python libraries...
 pip install -q -r requirements.txt
-pip install -q flask psutil requests gputil pyttsx3 chromadb rank_bm25 SpeechRecognition faster-whisper pydub imageio-ffmpeg
+pip install -q flask psutil requests gputil pyttsx3 chromadb rank_bm25 SpeechRecognition faster-whisper pydub imageio-ffmpeg duckduckgo-search playwright
+
+echo.
+echo [2.5/4] Installing Playwright Chromium browser (for web search)...
+python -m playwright install chromium
+echo [OK] Playwright Chromium installed.
 
 echo.
 echo [4/4] Starting Ollama and Pulling Base Models...
