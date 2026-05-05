@@ -383,34 +383,64 @@
             opacity: 1;
         }
 
-        .contact-tooltip {
-            visibility: hidden;
-            width: 280px;
-            background-color: #1e293b;
-            color: #e2e8f0;
-            text-align: left;
-            border-radius: 8px;
-            padding: 15px;
-            position: absolute;
-            z-index: 200;
-            top: 120%;
-            right: 0;
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-            transform: translateY(-5px);
-            font-size: 12px;
-            font-weight: normal;
-            line-height: 1.5;
+        /* 문의 팝업 모달 오버레이 */
+        #contact-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9000;
+            justify-content: center;
+            align-items: center;
+        }
+        #contact-modal-box {
+            background: #1e293b;
             border: 1px solid var(--accent);
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            padding: 24px;
+            width: 320px;
+            max-width: 90vw;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            color: #e2e8f0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        #contact-modal-box .modal-close-x {
+            position: absolute;
+            top: 12px; right: 14px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #94a3b8;
+            background: none;
+            border: none;
+            line-height: 1;
+        }
+        #contact-modal-box .modal-close-x:hover { color: white; }
+
+        /* 스킬 툴팁 */
+        .skill-tooltip-wrap {
+            position: relative;
+            cursor: default;
+        }
+        .skill-tooltip-wrap .skill-desc-tip {
+            display: none;
+            position: absolute;
+            left: 0; top: 110%;
+            background: #0f172a;
+            color: #cbd5e1;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            width: 240px;
+            z-index: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            white-space: normal;
             pointer-events: none;
         }
-        
-        .contact-info:hover .contact-tooltip {
-            visibility: visible;
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .skill-tooltip-wrap:hover .skill-desc-tip { display: block; }
 
         /* Editor Modal Styles */
         #modal-editor-content {
@@ -457,19 +487,32 @@
     <div class="sidebar">
         <div class="header" style="display: flex; justify-content: space-between; align-items: baseline;">
             <span>🐙 Minos <span onclick="toggleLang()" id="lang-btn" style="cursor:pointer; font-size:11px; background:rgba(255,255,255,0.1); padding:3px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;">🇰🇷 KR</span></span>
-            <span class="contact-info" style="font-size: 11px; font-weight: 400; color: #94a3b8; cursor: help; position: relative;">
-                문의:your-email@example.com
-                <div class="contact-tooltip">
-                    <div style="font-weight: 600; color: var(--accent); margin-bottom: 8px; font-size: 13px;">About Minos Project</div>
-                    <div style="margin-bottom: 12px; color: #cbd5e1;">
-                        "Created to overcome the shortcomings of heavy OpenClo and Hermes agents, and specifically designed to maximize the performance and efficiency of local LLMs."
-                    </div>
-                    <div style="border-top: 1px solid #334155; margin: 10px 0;"></div>
-                    <div style="font-weight: 600; color: var(--success); margin-bottom: 5px;">☕ Support the Developer</div>
-                    <div>• <b>PayPal:</b> <a href="https://paypal.me/your-username" target="_blank" style="color: #60a5fa; text-decoration: none;">paypal.me/your-username</a></div>
-                    <div>• <b>KB 국민은행:</b> YOUR-BANK-ACCOUNT-NUMBER</div>
-                </div>
+            <span onclick="openContactModal()" style="font-size: 11px; font-weight: 400; color: #94a3b8; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;" title="클릭하여 프로젝트 정보 보기">
+                문의 / About
             </span>
+
+            <!-- 문의 고정 모달 -->
+            <div id="contact-modal-overlay" onclick="closeContactModal(event)">
+                <div id="contact-modal-box">
+                    <button class="modal-close-x" onclick="closeContactModal()" title="닫기">✕</button>
+                    <div style="font-weight:700; color:var(--accent); font-size:15px; margin-bottom:10px;"
+                         data-ko="🐙 Minos 프로젝트 소개" data-en="🐙 About Minos Project">🐙 Minos 프로젝트 소개</div>
+                    <div style="color:#cbd5e1; margin-bottom:12px;"
+                         data-ko="무거운 OpenCLo·Hermes 에이전트의 단점을 극복하기 위해 제작되었으며, 로컬 LLM의 성능과 효율을 극대화하도록 특화 설계되었습니다."
+                         data-en="Created to overcome the shortcomings of heavy OpenClo and Hermes agents, and specifically designed to maximize the performance and efficiency of local LLMs.">
+                        무거운 OpenCLo·Hermes 에이전트의 단점을 극복하기 위해 제작되었으며, 로컬 LLM의 성능과 효율을 극대화하도록 특화 설계되었습니다.
+                    </div>
+                    <div style="border-top:1px solid #334155; margin:12px 0;"></div>
+                    <div style="font-weight:600; color:var(--success); margin-bottom:8px;"
+                         data-ko="☕ 개발자 후원" data-en="☕ Support the Developer">☕ 개발자 후원</div>
+                    <div style="margin-bottom:5px;">• <b>PayPal:</b> <a href="https://paypal.me/your-username" target="_blank" style="color:#60a5fa; text-decoration:none;">paypal.me/your-username</a></div>
+                    <div>• <b>KB 국민은행:</b> YOUR-BANK-ACCOUNT-NUMBER</div>
+                    <div style="margin-top:14px; text-align:right;">
+                        <button onclick="closeContactModal()" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:12px;"
+                                data-ko="닫기" data-en="Close">닫기</button>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="panel">
@@ -1061,80 +1104,113 @@
 
         function renderGuiForm(confName, data, container) {
             let html = '';
+            const inp = (id, label, val, ph='', hint='', type='text') => `
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">${label}</label>
+                    <input type="${type}" id="${id}" value="${val}" placeholder="${ph}" style="width:100%; box-sizing:border-box;">
+                    ${hint ? `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">${hint}</div>` : ''}
+                </div>`;
+            const toggle = (id, label, checked) => `
+                <div class="list-item" style="border:none; padding:10px 0;">
+                    <span style="font-weight:bold; color:white;">${label}</span>
+                    <label class="switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span class="slider round"></span></label>
+                </div>`;
+            const sel = (id, label, opts, cur) => `
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">${label}</label>
+                    <select id="${id}" style="width:100%; padding:10px; background:var(--panel-bg); color:white; border:1px solid var(--border); border-radius:6px;">
+                        ${opts.map(o => `<option value="${o.v}" ${cur===o.v?'selected':''}>${o.t}</option>`).join('')}
+                    </select>
+                </div>`;
+
             if (confName === 'weather_config.json') {
-                const cities = Array.isArray(data.cities) ? data.cities.join(', ') : '';
-                const lang = data.language || 'ko';
-                html += `
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">📍 지역 (Cities)</label>
-                        <input type="text" id="gui-weather-cities" value="${cities}" placeholder="Seoul, Busan, Tokyo" style="width:100%; box-sizing:border-box;">
-                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분하여 영문 도시명을 입력하세요.</div>
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🌐 언어 (Language)</label>
-                        <select id="gui-weather-lang" style="width:100%; padding:10px; background-color:var(--panel-bg); color:white; border:1px solid var(--border); border-radius:6px; outline:none;">
-                            <option value="ko" ${lang === 'ko' ? 'selected' : ''}>한국어 (Korean)</option>
-                            <option value="en" ${lang === 'en' ? 'selected' : ''}>영어 (English)</option>
-                        </select>
-                    </div>
-                `;
+                html += inp('gui-w-city', '📍 도시 (영문)', data.city||'Seoul', 'Seoul', '영문 도시명 (예: Seoul, Busan, Tokyo)');
+                html += inp('gui-w-lat', '위도 (Latitude)', data.latitude||37.5665, '37.5665');
+                html += inp('gui-w-lng', '경도 (Longitude)', data.longitude||126.9780, '126.9780', '네이버지도에서 좌표 확인 가능');
+                html += inp('gui-w-interval', '⏱️ 알림 간격 (시간)', data.alert_interval_hours||3, '3', '몇 시간마다 날씨를 알릴지 설정');
+                html += sel('gui-w-lang', '🌐 언어', [{v:'ko',t:'한국어'},{v:'en',t:'English'}], data.language||'ko');
+                html += toggle('gui-w-enabled', '✅ 날씨 알림 활성화', data.enabled!==false);
+            } else if (confName === 'stock_config.json') {
+                html += inp('gui-s-code', '📈 종목 코드', data.stock_code||'396650', '396650', '네이버 금융 종목 코드');
+                html += inp('gui-s-name', '종목 이름', data.stock_name||'', 'TIGER Fn반도체TOP10');
+                html += inp('gui-s-threshold', '📊 알림 임계값 (%)', data.alert_threshold_percent||1.0, '1.0', '이 등락률 이상일 때만 알림 (예: 1.0 = 1%)');
+                html += inp('gui-s-interval', '⏱️ 확인 주기 (분)', data.check_interval_minutes||60, '60');
+                html += toggle('gui-s-rise', '📈 상승 알림', data.alert_on_rise!==false);
+                html += toggle('gui-s-fall', '📉 하락 알림', data.alert_on_fall!==false);
+                html += toggle('gui-s-enabled', '✅ 주식 알림 활성화', data.enabled!==false);
+            } else if (confName === 'daily_digest_config.json') {
+                html += inp('gui-d-hour', '⏰ 발송 시각 (시)', data.send_hour??8, '8', '0~23 사이 숫자 입력');
+                html += inp('gui-d-minute', '발송 시각 (분)', data.send_minute??0, '0', '0~59 사이 숫자 입력');
+                html += inp('gui-d-city', '📍 날씨 도시 (영문)', data.city||'Seoul', 'Seoul');
+                html += inp('gui-d-news', '📰 뉴스 개수', data.news_count||3, '3', '보낼 뉴스 개수 (1~10)');
+                html += inp('gui-d-stock', '📈 종목 코드', data.stock_code||'396650', '396650');
+                html += toggle('gui-d-weather', '🌤 날씨 포함', data.include_weather!==false);
+                html += toggle('gui-d-news-t', '📰 뉴스 포함', data.include_news!==false);
+                html += toggle('gui-d-stock-t', '📈 주식 포함', data.include_stock!==false);
+                html += toggle('gui-d-enabled', '✅ 다이제스트 활성화', data.enabled!==false);
+            } else if (confName === 'morning_brief_config.json') {
+                html += inp('gui-mb-rss', '📡 RSS 피드 URL', data.rss_url||'', 'https://news.google.com/rss/...', '구글뉴스 RSS URL을 붙여넣으세요');
+                html += inp('gui-mb-count', '📰 뉴스 개수', data.news_count||5, '5', '최대 10개 권장');
+                html += inp('gui-mb-hour', '⏰ 발송 시각 (시)', data.send_hour??7, '7');
+                html += inp('gui-mb-minute', '발송 시각 (분)', data.send_minute??30, '30');
+                html += toggle('gui-mb-dedup', '🔄 중복 방지', data.dedup_enabled!==false);
+                html += toggle('gui-mb-enabled', '✅ 뉴스 브리핑 활성화', data.enabled!==false);
             } else if (confName === 'keyword_config.json') {
                 const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
-                html += `
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔍 추적 키워드 (Keywords)</label>
-                        <input type="text" id="gui-keyword-list" value="${kws}" placeholder="RTX 5090, 특가, LLM" style="width:100%; box-sizing:border-box;">
-                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분하여 관심사를 입력하세요.</div>
-                    </div>
-                `;
+                html += inp('gui-keyword-list', '🔍 추적 키워드', kws, 'RTX 5090, 특가, LLM', '쉼표(,)로 구분');
             } else if (confName === 'email_config.json') {
                 const email = data.email || '';
                 const pwd = data.password || '';
                 const imap = data.imap_server || 'imap.gmail.com';
                 const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
-                html += `
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">📧 이메일 계정 (Email)</label>
-                        <input type="text" id="gui-email-addr" value="${email}" style="width:100%; box-sizing:border-box;">
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔑 앱 비밀번호 (App Password)</label>
-                        <input type="password" id="gui-email-pwd" value="${pwd}" style="width:100%; box-sizing:border-box;">
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🖥️ IMAP 서버</label>
-                        <input type="text" id="gui-email-imap" value="${imap}" style="width:100%; box-sizing:border-box;">
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔍 감시 키워드 (Keywords)</label>
-                        <input type="text" id="gui-email-kws" value="${kws}" placeholder="결제, 청구, 중요" style="width:100%; box-sizing:border-box;">
-                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분. 해당 키워드가 포함된 메일만 텔레그램으로 보냅니다.</div>
-                    </div>
-                `;
+                html += inp('gui-email-addr', '📧 이메일 계정', email, 'you@gmail.com');
+                html += inp('gui-email-pwd', '🔑 앱 비밀번호', pwd, '', '', 'password');
+                html += inp('gui-email-imap', '🖥️ IMAP 서버', imap, 'imap.gmail.com');
+                html += inp('gui-email-kws', '🔍 감시 키워드', kws, '결제, 청구, 중요', '쉼표(,)로 구분');
             } else {
                 html = `<div style="color:var(--warning); padding:10px;">이 설정 파일은 간편 설정 UI를 아직 지원하지 않습니다.<br>전문가 모드(💻 Code)를 이용해 주세요.</div>`;
             }
             container.innerHTML = html;
         }
 
-        async function saveGuiConfig() {
-            if(!currentGuiConfig || !guiConfigData) return;
-            
-            if (currentGuiConfig === 'weather_config.json') {
-                const c_str = document.getElementById('gui-weather-cities').value;
-                guiConfigData.cities = c_str.split(',').map(s=>s.trim()).filter(s=>s);
-                guiConfigData.language = document.getElementById('gui-weather-lang').value;
-            } else if (currentGuiConfig === 'keyword_config.json') {
-                const k_str = document.getElementById('gui-keyword-list').value;
-                guiConfigData.keywords = k_str.split(',').map(s=>s.trim()).filter(s=>s);
-            } else if (currentGuiConfig === 'email_config.json') {
-                guiConfigData.email = document.getElementById('gui-email-addr').value;
-                guiConfigData.password = document.getElementById('gui-email-pwd').value;
-                guiConfigData.imap_server = document.getElementById('gui-email-imap').value;
-                const k_str = document.getElementById('gui-email-kws').value;
-                guiConfigData.keywords = k_str.split(',').map(s=>s.trim()).filter(s=>s);
+        // GUI 설정 데이터 수집 함수
+        function collectGuiData(confName) {
+            const v = id => document.getElementById(id);
+            const chk = id => v(id) ? v(id).checked : false;
+            const num = id => v(id) ? (parseFloat(v(id).value) || 0) : 0;
+            const str = id => v(id) ? v(id).value.trim() : '';
+            if (confName === 'weather_config.json') {
+                return { city: str('gui-w-city'), latitude: num('gui-w-lat'), longitude: num('gui-w-lng'),
+                         alert_interval_hours: num('gui-w-interval'), language: str('gui-w-lang'), enabled: chk('gui-w-enabled') };
+            } else if (confName === 'stock_config.json') {
+                return { stock_code: str('gui-s-code'), stock_name: str('gui-s-name'),
+                         alert_threshold_percent: num('gui-s-threshold'), check_interval_minutes: num('gui-s-interval'),
+                         alert_on_rise: chk('gui-s-rise'), alert_on_fall: chk('gui-s-fall'), enabled: chk('gui-s-enabled') };
+            } else if (confName === 'daily_digest_config.json') {
+                return { send_hour: num('gui-d-hour'), send_minute: num('gui-d-minute'), city: str('gui-d-city'),
+                         news_count: num('gui-d-news'), stock_code: str('gui-d-stock'),
+                         include_weather: chk('gui-d-weather'), include_news: chk('gui-d-news-t'),
+                         include_stock: chk('gui-d-stock-t'), enabled: chk('gui-d-enabled') };
+            } else if (confName === 'morning_brief_config.json') {
+                return { rss_url: str('gui-mb-rss'), news_count: num('gui-mb-count'),
+                         send_hour: num('gui-mb-hour'), send_minute: num('gui-mb-minute'),
+                         dedup_enabled: chk('gui-mb-dedup'), enabled: chk('gui-mb-enabled') };
+            } else if (confName === 'keyword_config.json') {
+                const k_str = str('gui-keyword-list');
+                return { keywords: k_str.split(',').map(s=>s.trim()).filter(s=>s) };
+            } else if (confName === 'email_config.json') {
+                const k_str = str('gui-email-kws');
+                return { email: str('gui-email-addr'), password: str('gui-email-pwd'),
+                         imap_server: str('gui-email-imap'),
+                         keywords: k_str.split(',').map(s=>s.trim()).filter(s=>s) };
             }
+            return null;
+        }
 
+        async function saveGuiConfig() {
+            if(!currentGuiConfig) return;
+            const collected = collectGuiData(currentGuiConfig);
+            const saveData = collected || guiConfigData;
             try {
                 const res = await fetch('/api/editor/save', {
                     method: 'POST',
@@ -1142,14 +1218,14 @@
                     body: JSON.stringify({
                         type: 'config',
                         name: currentGuiConfig,
-                        content: JSON.stringify(guiConfigData, null, 4)
+                        content: JSON.stringify(saveData, null, 4)
                     })
                 });
                 const data = await res.json();
                 if(data.success) {
                     const status = document.getElementById('gui-status');
                     status.style.display = 'inline';
-                    setTimeout(() => status.style.display='none', 2000);
+                    setTimeout(() => status.style.display='none', 2500);
                 } else {
                     alert("저장 실패: " + data.error);
                 }
@@ -1158,6 +1234,27 @@
             }
         }
         
+        // 문의 모달 함수
+        function openContactModal() {
+            document.getElementById('contact-modal-overlay').style.display = 'flex';
+            applyLang(); // 현재 언어 적용
+        }
+        function closeContactModal(e) {
+            if (!e || e.target.id === 'contact-modal-overlay') {
+                document.getElementById('contact-modal-overlay').style.display = 'none';
+            }
+        }
+
+        // 스킬 설명 프리로드
+        window._skillDescs = {};
+        async function preloadSkillDescs() {
+            try {
+                const res = await fetch('/api/skill_descs');
+                window._skillDescs = await res.json();
+            } catch(e) { console.warn('skill_descs load failed:', e); }
+        }
+        preloadSkillDescs();
+
         // 주기적 실행 대신 최초에 한 번만 로드
         setTimeout(fetchConfigs, 1000);
 
@@ -1318,8 +1415,10 @@
                     div.className = 'list-item';
                     const btnClass = s.is_auto ? 'toggle-btn auto' : 'toggle-btn';
                     const btnText = s.is_auto ? 'AUTO' : 'MANUAL';
+                    const desc = window._skillDescs ? (window._skillDescs[s.name] || '') : '';
+                    const tipHtml = desc ? `<span class="skill-desc-tip">${desc}</span>` : '';
                     div.innerHTML = `
-                        <span style="font-size:12px;">${s.name}</span>
+                        <span class="skill-tooltip-wrap" style="font-size:12px;">${s.name}${tipHtml}</span>
                         <div>
                             <button class="edit-btn" onclick="openEditorModal('skill', '${s.name}')">📝 Edit</button>
                             <button class="${btnClass}" onclick="toggleSkill('${s.name}')">${btnText}</button>

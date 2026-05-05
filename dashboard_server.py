@@ -356,10 +356,37 @@ def get_config_list():
     target_dir = os.path.join(BASE_DIR, "tentacles", "data")
     configs = []
     if os.path.exists(target_dir):
-        for f in os.listdir(target_dir):
+        for f in sorted(os.listdir(target_dir)):
             if f.endswith('.json'):
                 configs.append(f)
     return jsonify(configs)
+
+@app.route('/api/skill_descs')
+def get_skill_descs():
+    """각 스킬 파일의 AGENT_SKILL_DESC 메타데이터를 읽어 반환"""
+    skills_dir = os.path.join(BASE_DIR, "skill_system", "skills")
+    result = {}
+    if not os.path.exists(skills_dir):
+        return jsonify(result)
+    for fname in os.listdir(skills_dir):
+        if not fname.endswith('.py'):
+            continue
+        try:
+            fpath = os.path.join(skills_dir, fname)
+            desc = ""
+            with open(fpath, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('# AGENT_SKILL_DESC:'):
+                        desc = line.replace('# AGENT_SKILL_DESC:', '').strip()
+                        break
+                    if not line.startswith('#') and line:
+                        break
+            if desc:
+                result[fname] = desc
+        except Exception:
+            pass
+    return jsonify(result)
 
 @app.route('/api/memory')
 def get_memory():
