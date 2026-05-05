@@ -1436,6 +1436,12 @@
             } catch(e) { console.error(e); }
         }
 
+        // <CMD>...</CMD> 블록을 채팅창에서 제거하는 헬퍼 함수
+        function stripCmd(text) {
+            // <CMD>...</CMD> 태그와 내용을 완전히 제거
+            return text.replace(/<CMD>[\s\S]*?<\/CMD>/g, '').replace(/\n{3,}/g, '\n\n').trim();
+        }
+
         async function fetchMemory() {
             try {
                 const res = await fetch('/api/memory');
@@ -1445,8 +1451,9 @@
                 msgs.forEach(m => {
                     const div = document.createElement('div');
                     div.className = `message ${m.role}`;
-                    div.innerText = m.content;
-                    container.appendChild(div);
+                    // <CMD> 블록은 채팅창에서 숨김 처리
+                    div.innerText = stripCmd(m.content);
+                    if (div.innerText.trim()) container.appendChild(div);
                 });
                 container.scrollTop = container.scrollHeight;
             } catch(e) {}
@@ -1564,14 +1571,15 @@
                             const data = JSON.parse(dataStr);
                             if(data.status === 'chunk') {
                                 currentText += data.content;
-                                astDiv.innerText = currentText;
+                                // CMD 블록은 채팅창에서 숨기고 일반 텍스트만 표시
+                                astDiv.innerText = stripCmd(currentText);
                                 container.scrollTop = container.scrollHeight;
                             } else if(data.status === 'system') {
-                                currentText += "nn[시스템]: " + data.content;
-                                astDiv.innerText = currentText;
+                                currentText += "\n\n[시스템]: " + data.content;
+                                astDiv.innerText = stripCmd(currentText);
                             } else if(data.status === 'error') {
-                                currentText += "nn❌ [오류]: " + data.content;
-                                astDiv.innerText = currentText;
+                                currentText += "\n\n❌ [오류]: " + data.content;
+                                astDiv.innerText = stripCmd(currentText);
                                 container.scrollTop = container.scrollHeight;
                             } else if(data.status === 'command_request') {
                                 const cmdDiv = document.createElement('div');
