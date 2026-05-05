@@ -33,3 +33,16 @@ tentacles/logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Backup and temp files
+*.bak
+*.tmp
+*.v1_bak
+*.v3_backup
+
+# Logs directory
+logs/
+tentacles/logs/
+
+# Morse code / scratch notes
+tentacles/morning_code_clean.txt
