@@ -1,0 +1,142 @@
+"""
+morning_brief_tentacle.py (v3 - 최신 뉴스 보장형)
+매일 아침 IT/과학 분야의 최신 뉴스를 구글 뉴스 RSS 등을 통해 수집합니다.
+이미 브리핑한 뉴스는 제외하고 항상 새로운 소식만 전합니다.
+"""
+import os
+import sys
+import json
+import re
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+
+# 경로 설정
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+SIGNAL_FILE = os.path.join(BASE_DIR, "logs", "tentacle_signals.json")
+HISTORY_FILE = os.path.join(DATA_DIR, "news_history.json") # 중복 방지용 역사 파일
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. 뉴스 수집 설정 (구글 뉴스 IT/과학 섹션 등)
+# ─────────────────────────────────────────────────────────────────────────────
+RSS_FEEDS = [
+    "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=ko&gl=KR&ceid=KR:ko", # IT
+    "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=ko&gl=KR&ceid=KR:ko",    # 과학
+]
+
+def get_latest_news(limit=5):
+    all_items = []
+    
+    # 중복 체크용 기록 로드
+    history = []
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+        except:
+            history = []
+
+    for url in RSS_FEEDS:
+        try:
+            res = requests.get(url, timeout=10)
+            res.encoding = 'utf-8'
+            root = ET.fromstring(res.text)
+            
+            for item in root.findall('.//item'):
+                title = item.find('title').text
+                link = item.find('link').text
+                pub_date = item.find('pubDate').text
+                
+                # 중복 뉴스(제목 기준) 제외
+                if title in history:
+                    continue
+                
+                all_items.append({
+                    "title": title,
+                    "link": link,
+                    "date": pub_date
+                })
+        except Exception as e:
+            print(f"[ERROR] RSS 수집 실패 ({url}): {e}")
+
+    # 최신 순 정렬 (RSS는 보통 최신순이지만 보장 위해)
+    # 구글 뉴스는 제목 뒤에 언론사가 붙음 (예: "제목 - 언론사")
+    unique_news = []
+    for news in all_items:
+        clean_title = news['title'].split(' - ')[0] # 언론사 이름 제거
+        if any(clean_title in u['title'] for u in unique_news):
+            continue
+        unique_news.append(news)
+        if len(unique_news) >= limit:
+            break
+            
+    # 역사 업데이트 (최근 100개까지만 유지)
+    new_history = [n['title'] for n in unique_news] + history
+    new_history = new_history[:100]
+    
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+        json.dump(new_history, f, ensure_ascii=False, indent=2)
+        
+    return unique_news
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. 실행 로직
+# ─────────────────────────────────────────────────────────────────────────────
+now = datetime.now()
+
+# 하루 한 번만 실행되도록 체크 (쿨타임 파일)
+COOLDOWN_FILE = os.path.join(DATA_DIR, "morning_brief_cooldown.txt")
+if os.path.exists(COOLDOWN_FILE):
+    with open(COOLDOWN_FILE, 'r') as f:
+        last_date = f.read().strip()
+    if last_date == now.strftime("%Y-%m-%d"):
+        print("[INFO] 오늘 이미 브리핑을 완료했습니다.")
+        # sys.exit(0) # 테스트를 위해 주석 처리하거나 수동 실행 시 무시
+
+# 뉴스 가져오기
+news_list = get_latest_news(5)
+
+if not news_list:
+    print("[INFO] 새로운 뉴스가 없습니다.")
+    sys.exit(0)
+
+# 메시지 구성
+msg_parts = ["✨ **실시간 IT/과학 뉴스 브리핑** ✨\n"]
+for i, news in enumerate(news_list, 1):
+    # 제목에서 언론사 분리 시도
+    title = news['title']
+    if " - " in title:
+        title = title.rsplit(" - ", 1)[0]
+    msg_parts.append(f"{i}. **{title}**")
+
+msg_parts.append("\n형님, 위 내용 중 궁금하신 게 있다면 자세히 알려드릴게요! 😊")
+full_message = "\n".join(msg_parts)
+
+# 신호망 발송
+try:
+    os.makedirs(os.path.dirname(SIGNAL_FILE), exist_ok=True)
+    signals = {}
+    if os.path.exists(SIGNAL_FILE):
+        try:
+            with open(SIGNAL_FILE, 'r', encoding='utf-8') as f:
+                signals = json.load(f)
+        except:
+            signals = {}
+            
+    signals["morning_brief_tentacle.py"] = {
+        "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "message": full_message
+    }
+    
+    with open(SIGNAL_FILE, 'w', encoding='utf-8') as f:
+        json.dump(signals, f, indent=4, ensure_ascii=False)
+        
+    # 쿨타임 저장
+    with open(COOLDOWN_FILE, 'w') as f:
+        f.write(now.strftime("%Y-%m-%d"))
+        
+    print(f"[SUCCESS] 브리핑 신호 발송 완료:\n{full_message}")
+except Exception as e:
+    print(f"[ERROR] 신호 발송 중 오류: {e}")

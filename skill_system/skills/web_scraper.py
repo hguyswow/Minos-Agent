@@ -1,6 +1,13 @@
 import sys
+import io
 import requests
 from bs4 import BeautifulSoup
+
+# 한글 깨짐 방지 (Windows 환경 시스템 인코딩 방어)
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding.lower() != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def scrape_web(url):
     try:

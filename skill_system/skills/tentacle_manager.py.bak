@@ -26,7 +26,7 @@ def main():
             code = f.read()
             
         print(f"--- {filename} 코드 시작 ---")
-        print(code.encode('cp949', errors='replace').decode('cp949'))
+        print(code)
         print(f"--- {filename} 코드 끝 ---")
         
     elif action == "write":

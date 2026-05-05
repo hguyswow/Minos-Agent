@@ -1,0 +1,24 @@
+{
+    "active_engine": "ollama",
+    "engines": {
+        "ollama": {
+            "name": "Ollama (Gemma 4 E4B)",
+            "url": "http://127.0.0.1:11434/v1/chat/completions",
+            "model": "gemma4-e4b:q4km",
+            "max_tokens": 4096
+        },
+        "turboquant": {
+            "name": "TurboQuant (Hermes 3)",
+            "url": "http://127.0.0.1:8080/v1/chat/completions",
+            "model": "Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
+            "max_tokens": 4096
+        },
+        "api": {
+            "name": "OpenCode Go API",
+            "url": "https://opencode.ai/zen/go/v1/chat/completions",
+            "model": "glm-5.1",
+            "api_key": "YOUR_API_KEY_HERE",
+            "max_tokens": 4096
+        }
+    }
+}

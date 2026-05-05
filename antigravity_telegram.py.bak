@@ -13,7 +13,6 @@ import telegram.error
 import sys
 import threading
 import queue
-import asyncio
 try:
     import pyttsx3
 except ImportError:
@@ -767,53 +766,36 @@ async def no_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await stream_llm_response(update, context, chat_id)
 
 async def execute_command_and_continue(cmd: str, update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: str, application=None):
-    """실제 터미널 명령어를 백그라운드 비동기로 실행하고 결과를 봇의 뇌에 주입한 뒤 다시 스트리밍을 호출합니다."""
+    """실제 터미널 명령어를 실행하고 결과를 봇의 뇌에 주입한 뒤 다시 스트리밍을 호출합니다."""
     bot = context.bot if context else application.bot
-    status_msg = await bot.send_message(chat_id=chat_id, text=f"⚡ 윈도우 터미널 명령어 (비동기) 실행 중...\n`{cmd}`", parse_mode='Markdown')
+    status_msg = await bot.send_message(chat_id=chat_id, text=f"⚡ 윈도우에서 터미널 명령어 실행 중...\n`{cmd}`", parse_mode='Markdown')
     
-    async def _run_async_task():
-        try:
-            # 비동기 서브프로세스 생성 (UTF-8 강제 주입으로 이모지 출력 시 CP949 에러 방어)
-            custom_env = os.environ.copy()
-            custom_env["PYTHONIOENCODING"] = "utf-8"
-            process = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=custom_env
-            )
-            # 타임아웃 30초 적용
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30.0)
-            
-            out_str = stdout.decode('utf-8', errors='replace') if stdout else ""
-            err_str = stderr.decode('utf-8', errors='replace') if stderr else ""
-            
-            output = out_str + "\n" + err_str
-            if not output.strip():
-                output = "(명령어가 성공적으로 실행되었으나 출력된 내용이 없습니다.)"
-        except asyncio.TimeoutError:
-            try:
-                process.kill()
-            except: pass
-            output = "[오류]: 명령어 실행 시간이 30초를 초과하여 강제 종료되었습니다."
-        except Exception as e:
-            output = f"[오류]: 명령어 실행 중 예외 발생: {str(e)}"
-            
-        if len(output) > 2000:
-            output = output[:2000] + "\n... (출력이 너무 길어 생략됨)"
-            
-        await bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=status_msg.message_id,
-            text=f"✅ 백그라운드 작업 완료. 봇이 결과를 분석합니다..."
-        )
+    try:
+        # 명령어 윈도우 실행 (timeout 30초 설정)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', timeout=30)
+        output = str(result.stdout or "") + "\n" + str(result.stderr or "")
+        if not output.strip():
+            output = "(명령어가 성공적으로 실행되었으나 출력된 내용이 없습니다.)"
+    except subprocess.TimeoutExpired:
+        output = "[오류]: 명령어 실행 시간이 30초를 초과하여 강제 종료되었습니다."
+    except Exception as e:
+        output = f"[오류]: 명령어 실행 중 예외 발생: {str(e)}"
         
-        memory.add_message(chat_id=chat_id, role="user", content=f"[터미널 명령어 실행 결과]\n명령어: {cmd}\n결과:\n{output}\n\n위 결과를 바탕으로 분석하거나 사용자에게 답변을 이어나가세요.")
+    # 너무 긴 출력은 자르기 (Ollama 컨텍스트 오버플로우 방지)
+    if len(output) > 2000:
+        output = output[:2000] + "\n... (출력이 너무 길어 생략됨)"
         
-        await stream_llm_response(update, context, chat_id, application=application)
-
-    # 봇의 메인 이벤트를 블로킹하지 않고 백그라운드 태스크로 던짐
-    asyncio.create_task(_run_async_task())
+    await bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=status_msg.message_id,
+        text=f"✅ 실행 완료. 봇이 결과를 분석합니다..."
+    )
+    
+    # 실행 결과를 user 롤로 기억에 주입
+    memory.add_message(chat_id=chat_id, role="user", content=f"[터미널 명령어 실행 결과]\n명령어: {cmd}\n결과:\n{output}\n\n위 결과를 바탕으로 분석하거나 사용자에게 답변을 이어나가세요.")
+    
+    # 봇에게 다시 생각하도록 스트리밍 호출
+    await stream_llm_response(update, context, chat_id, application=application)
 
 async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: str, current_query: str = "", application=None):
     """Ollama API와 통신하여 텍스트를 실시간으로 받아오고 텔레그램에 출력하는 핵심 로직"""

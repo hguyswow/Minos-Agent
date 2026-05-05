@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import threading
 import queue
 import re
@@ -20,7 +21,6 @@ try:
 except ImportError:
     GTTS_AVAILABLE = False
 
-
 try:
     import pyttsx3
     import pythoncom
@@ -40,8 +40,9 @@ def get_bot_config():
     return {}
 
 class TTSEngine:
-    def __init__(self):
+    def __init__(self, skip_symbols: bool = False):
         self.q = queue.Queue()
+        self._skip_symbols = skip_symbols
         self.thread = threading.Thread(target=self._worker, daemon=True)
         self.thread.start()
         
@@ -57,9 +58,7 @@ class TTSEngine:
             text, rate, volume, engine_type, voice = item
             try:
                 if engine_type == "edge" and EDGE_TTS_AVAILABLE:
-                    # edge-tts 처리
                     async def play_edge():
-                        # volume / rate 는 edge-tts 에서 지원하는 파라미터가 있지만 심플하게 voice만 우선 적용
                         communicate = edge_tts.Communicate(text, voice)
                         fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
                         os.close(fd)
@@ -71,13 +70,11 @@ class TTSEngine:
                         while pygame.mixer.music.get_busy():
                             pygame.time.Clock().tick(10)
                         pygame.mixer.music.unload()
-                        try:
-                            os.remove(temp_audio)
+                        try: os.remove(temp_audio)
                         except: pass
                     
                     asyncio.run(play_edge())
                 elif engine_type == "google" and GTTS_AVAILABLE:
-                    # Google TTS 처리 (여성 목소리 기본)
                     def play_google():
                         tts_google = gTTS(text=text, lang='ko', slow=(rate < 150))
                         fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
@@ -90,13 +87,11 @@ class TTSEngine:
                         while pygame.mixer.music.get_busy():
                             pygame.time.Clock().tick(10)
                         pygame.mixer.music.unload()
-                        try:
-                            os.remove(temp_audio)
+                        try: os.remove(temp_audio)
                         except: pass
                     
                     play_google()
                 else:
-                    # 기존 pyttsx3 처리
                     if not pyttsx3: raise Exception("pyttsx3 not installed")
                     engine.setProperty('rate', rate)
                     engine.setProperty('volume', volume)
@@ -108,22 +103,87 @@ class TTSEngine:
                 self.q.task_done()
 
     def speak(self, text):
-        if not pyttsx3:
-            return
+        if not pyttsx3: return
             
         current_config = get_bot_config()
-        if not current_config.get("tts_enabled", False):
-            return
+        if not current_config.get("tts_enabled", False): return
             
         rate = current_config.get("tts_rate", 180)
         volume = float(current_config.get("tts_volume", 1.0))
         engine_type = current_config.get("tts_engine", "pyttsx3")
         voice = current_config.get("tts_voice", "ko-KR-SunHiNeural")
+        
+        # 기호/이모지 스킵 옵션 갱신
+        self._skip_symbols = current_config.get("tts_skip_symbols", False)
 
-        # 스피치용 텍스트 클리닝 (태그 및 마크다운 제거)
+        # 스피치용 텍스트 클리닝
         clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
         clean_text = re.sub(r'[*_`~]', '', clean_text)
+        
+        if self._skip_symbols:
+            # 이모지 제거
+            clean_text = re.sub(r'[\U0001F600-\U0001F64F]', '', clean_text)
+            clean_text = re.sub(r'[\U0001F300-\U0001F5FF]', '', clean_text)
+            # 괄호 제거
+            clean_text = re.sub(r'[\(\[\{][^\)\]\}]*[\)\]\}]', '', clean_text)
+            
         if clean_text.strip():
             self.q.put((clean_text.strip(), rate, volume, engine_type, voice))
 
-tts = TTSEngine()
+    def stop(self):
+        """현재 재생 중인 음성을 중단하고 대기 중인 큐를 비움"""
+        try:
+            pygame.mixer.music.stop()
+            while not self.q.empty():
+                try:
+                    self.q.get_nowait()
+                    self.q.task_done()
+                except: break
+        except Exception as e:
+            print(f"TTS Stop Error: {e}")
+
+# 전역 인스턴스 생성
+config = get_bot_config()
+tts = TTSEngine(skip_symbols=config.get('tts_skip_symbols', False))
+
+def generate_tts_file(text, config):
+    """지정된 텍스트와 설정으로 오디오 파일을 생성하고 해당 경로를 반환합니다. 호출자가 직접 삭제해야 합니다."""
+    clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+    clean_text = re.sub(r'[*_`~]', '', clean_text)
+    if config.get("tts_skip_symbols", False):
+        clean_text = re.sub(r'[\U0001F600-\U0001F64F]', '', clean_text)
+        clean_text = re.sub(r'[\U0001F300-\U0001F5FF]', '', clean_text)
+        clean_text = re.sub(r'[\(\[\{][^\)\]\}]*[\)\]\}]', '', clean_text)
+        
+    clean_text = clean_text.strip()
+    if not clean_text: return None
+
+    engine_type = config.get("tts_engine", "pyttsx3")
+    voice = config.get("tts_voice", "ko-KR-SunHiNeural")
+    rate = config.get("tts_rate", 180)
+    
+    fd, temp_audio = tempfile.mkstemp(suffix=".mp3")
+    os.close(fd)
+    
+    try:
+        if engine_type == "edge" and EDGE_TTS_AVAILABLE:
+            async def gen_edge():
+                communicate = edge_tts.Communicate(clean_text, voice)
+                await communicate.save(temp_audio)
+            asyncio.run(gen_edge())
+        elif engine_type == "google" and GTTS_AVAILABLE:
+            tts_google = gTTS(text=clean_text, lang='ko', slow=(rate < 150))
+            tts_google.save(temp_audio)
+        else:
+            # 기본 pyttsx3는 파일 저장이 까다로우므로 google로 폴백
+            if GTTS_AVAILABLE:
+                tts_google = gTTS(text=clean_text, lang='ko')
+                tts_google.save(temp_audio)
+            else:
+                return None
+        return temp_audio
+    except Exception as e:
+        print(f"TTS 파일 생성 실패: {e}")
+        try: os.remove(temp_audio)
+        except: pass
+        return None

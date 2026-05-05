@@ -146,49 +146,9 @@ class MemoryEngine:
         self.log_episodic(chat_id, role, content)
         mem = self.load_memory(chat_id)
         mem["working_memory"].append({"role": role, "content": content})
-        
         if len(mem["working_memory"]) > self.max_working_memory:
-            # Memory Condenser Trigger (기억 압축 엔진)
-            keep_count = int(self.max_working_memory * 0.8)
-            condense_count = len(mem["working_memory"]) - keep_count
-            
-            old_messages = mem["working_memory"][:condense_count]
-            mem["working_memory"] = mem["working_memory"][condense_count:]
-            
-            # 메인 스레드 블로킹 방지를 위해 백그라운드 스레드로 압축 실행
-            self._condense_memory_thread(chat_id, old_messages, mem.get("semantic_memory", ""))
-            
+            mem["working_memory"] = mem["working_memory"][-self.max_working_memory:]
         self.save_memory(chat_id, mem)
-
-    def _condense_memory_thread(self, chat_id: str, old_messages: list, current_semantic: str):
-        import threading
-        import requests
-        
-        def task():
-            try:
-                text_to_condense = "\n".join([f"{m['role']}: {m['content']}" for m in old_messages])
-                prompt = f"다음 과거 대화를 3줄 이내로 핵심만 요약해라. 사용자의 성향이나 중요한 팩트, 맥락 위주로 압축해라:\n\n{text_to_condense}"
-                
-                # 로컬 Ollama 엔드포인트 호출 (기본 모델 사용)
-                res = requests.post('http://127.0.0.1:11434/api/generate', json={
-                    'model': 'gemma4-e4b:q4km', 
-                    'prompt': prompt,
-                    'stream': False
-                }, timeout=30)
-                
-                if res.status_code == 200:
-                    summary = res.json().get('response', '').strip()
-                    if summary:
-                        new_semantic = current_semantic.strip() + f"\n- [과거 압축 요약]: {summary}"
-                        # 무한 증식 방지 (장기 기억 최대 3000자 유지)
-                        if len(new_semantic) > 3000:
-                            new_semantic = "..." + new_semantic[-2900:]
-                        self.update_semantic_memory(chat_id, new_semantic)
-                        print(f"[MemoryEngine] Memory Condenser: 과거 기억 압축 및 장기 기억 이관 완료.")
-            except Exception as e:
-                print(f"[MemoryEngine] Memory Condenser 오류 (압축 실패): {e}")
-                
-        threading.Thread(target=task, daemon=True).start()
 
     def retrieve_past_context(self, chat_id: str, query: str, mode: str = 'embedding', top_k: int = 3) -> str:
         """

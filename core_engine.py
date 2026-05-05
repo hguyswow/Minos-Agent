@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import re
 import json
@@ -13,8 +14,32 @@ from memory_engine import MemoryEngine
 sys.path.append(os.path.join(BASE_DIR, 'skill_system'))
 from skill_registry import SkillRegistry
 
-# 설정
-LLAMA_URL = "http://127.0.0.1:11434/v1/chat/completions"
+# 설정 불러오기
+def load_llm_config():
+    config_path = os.path.join(BASE_DIR, "llm_config.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    # 기본값
+    return {
+        "active_engine": "ollama",
+        "engines": {
+            "ollama": {
+                "url": "http://127.0.0.1:11434/v1/chat/completions",
+                "model": "gemma4-e4b:q4km",
+                "max_tokens": 4096
+            }
+        }
+    }
+
+LLM_CONFIG = load_llm_config()
+active_env = LLM_CONFIG.get("active_engine", "ollama")
+engine_info = LLM_CONFIG.get("engines", {}).get(active_env, {})
+LLAMA_URL = engine_info.get("url", "http://127.0.0.1:11434/v1/chat/completions")
+MODEL_NAME = engine_info.get("model", "gemma4-e4b:q4km")
+MAX_TOKENS = engine_info.get("max_tokens", 4096)
+API_KEY = engine_info.get("api_key", "")
+
 memory = MemoryEngine(memory_dir=os.path.join(BASE_DIR, "memory_logs"), max_working_memory=30)
 skills = SkillRegistry(system_dir=os.path.join(BASE_DIR, "skill_system"))
 
@@ -39,6 +64,7 @@ def get_dynamic_prompt(chat_id: str) -> str:
     
     self_awareness_prompt = (
         f"\n\n[당신의 현재 상태 (Self-Awareness)]\n"
+        f"- 현재 구동 중인 AI 두뇌(모델명): {MODEL_NAME} ({active_env})\n"
         f"- 단기 기억 포화도: {working_count} / {max_count} (최대치 도달 시 오래된 기억부터 강제 유실됨)\n"
         f"- 구동 환경 부하: CPU {cpu_percent}%, RAM {ram_percent}%\n"
         f"* 지시사항: 당신은 매 턴마다 자신의 위 상태를 인지해야 합니다. 만약 단기 기억이 꽉 차가거나 시스템 부하가 높다면, 대답 시 먼저 사용자에게 '기억 정리가 필요하다'고 건의하십시오."
@@ -62,15 +88,19 @@ def generate_response_stream(chat_id: str, current_query: str = "", memory_mode:
     )
     
     payload = {
-        'model': 'gemma4-e4b:q4km',
+        'model': MODEL_NAME,
         'messages': optimized_messages,
         'temperature': 0.7,
-        'max_tokens': 4096,
+        'max_tokens': MAX_TOKENS,
         'stream': True
     }
     
+    headers = {"Content-Type": "application/json"}
+    if API_KEY:
+        headers["Authorization"] = f"Bearer {API_KEY}"
+    
     try:
-        response = requests.post(LLAMA_URL, json=payload, stream=True, timeout=300)
+        response = requests.post(LLAMA_URL, headers=headers, json=payload, stream=True, timeout=300)
         response.raise_for_status()
         
         reply_text = ""

@@ -223,7 +223,16 @@
             line-height: 1.5;
             font-size: 15px;
             white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
             animation: fadeIn 0.3s ease;
+        }
+        
+        .message-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         @keyframes fadeIn {
@@ -446,7 +455,7 @@
 
     <div class="sidebar">
         <div class="header" style="display: flex; justify-content: space-between; align-items: baseline;">
-            <span>🐙 Minos</span>
+            <span>🐙 Minos <span onclick="toggleLang()" id="lang-btn" style="cursor:pointer; font-size:11px; background:rgba(255,255,255,0.1); padding:3px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;">🇰🇷 KR</span></span>
             <span class="contact-info" style="font-size: 11px; font-weight: 400; color: #94a3b8; cursor: help; position: relative;">
                 문의:hguyswow@gmail.com
                 <div class="contact-tooltip">
@@ -483,12 +492,17 @@
         </div>
 
         <button class="menu-btn" onclick="openModal('modal-tentacles', '🐙 Tentacles (Daemon)')">
-            <span>🐙 Tentacles (Daemon)</span>
+            <span data-ko="🐙 문어발 (백그라운드)" data-en="🐙 Tentacles (Daemon)">🐙 Tentacles (Daemon)</span>
             <span>▶</span>
         </button>
 
         <button class="menu-btn" onclick="openModal('modal-skills', '🛠️ Skills (Auto-Approve)')">
-            <span>🛠️ Skills (Auto-Approve)</span>
+            <span data-ko="🛠️ 스킬 (명령 모듈)" data-en="🛠️ Skills (Auto-Approve)">🛠️ Skills (Auto-Approve)</span>
+            <span>▶</span>
+        </button>
+        
+        <button class="menu-btn" onclick="openModal('modal-configs', '⚙️ Tentacle Configs')">
+            <span data-ko="⚙️ 문어발 설정" data-en="⚙️ Tentacle Configs">⚙️ Tentacle Configs (설정)</span>
             <span>▶</span>
         </button>
         
@@ -545,12 +559,12 @@
         <div class="chat-container" id="chat-container">
             <!-- Messages go here -->
         </div>
-        <div class="typing-indicator" id="typing">알쫑이가 답변을 생성 중입니다... ✍️</div>
+        <div class="typing-indicator" id="typing" data-ko="알쫑이가 답변을 생성 중입니다... ✍️" data-en="Aljjongi is typing... ✍️">알쫑이가 답변을 생성 중입니다... ✍️</div>
         
         <div class="input-area">
             <button class="mic-btn" id="mic-btn" onclick="toggleMic()" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 10px; color: #94a3b8; transition: color 0.3s;">🎙️</button>
-            <input type="text" class="chat-input" id="user-input" placeholder="알쫑이에게 명령을 내리세요..." autocomplete="off" onkeypress="handleEnter(event)">
-            <button class="send" onclick="sendMessage()">전송</button>
+            <input type="text" class="chat-input" id="user-input" autocomplete="off" onkeypress="handleEnter(event)" placeholder="알쫑이에게 명령을 내리세요..." data-ko="알쫑이에게 명령을 내리세요..." data-en="Give a command to Aljjongi...">
+            <button class="send" onclick="sendMessage()" data-ko="전송" data-en="Send">전송</button>
         </div>
     </div>
 
@@ -573,6 +587,24 @@
                 <div id="modal-skills" style="display:none;">
                     <div id="skill-list">
                         <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Configs Modal -->
+                <div id="modal-configs" style="display:none;">
+                    <div id="config-list">
+                        <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- GUI Config Editor Modal -->
+                <div id="modal-gui-editor" style="display:none;">
+                    <div id="gui-form-container" style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                        <!-- Forms injected here -->
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                        <span id="gui-status" style="color:var(--success); font-size:12px; margin-right:15px; align-self:center; display:none;">저장되었습니다!</span>
+                        <button class="save" onclick="saveGuiConfig()" style="padding: 8px 20px;">저장 (Save)</button>
                     </div>
                 </div>
                 
@@ -613,6 +645,14 @@
                         </div>
                         <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
                         <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">📍 음성 출력 대상 (Destination)</span>
+                            <select id="tts-destination" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="local">대시보드 스피커 (PC)</option>
+                                <option value="telegram">텔레그램 음성 메시지</option>
+                                <option value="both">둘 다 (PC + 텔레그램)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
                             <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 출력 엔진 (TTS)</span>
                             <select id="tts-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
                                 <option value="edge">고음질 AI (Edge Neural)</option>
@@ -623,12 +663,23 @@
                         <div class="list-item" style="border:none; padding:10px 0;">
                             <span style="font-size:14px; font-weight:bold; color:white;">🗣️ 알쫑이 목소리 선택</span>
                             <select id="tts-voice" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
-                                <option value="ko-KR-SunHiNeural">SunHi (여성/밝음)</option>
-                                <option value="ko-KR-InJoonNeural">InJoon (남성/차분)</option>
-                                <option value="ko-KR-HyunsuNeural">Hyunsu (남성/활기참)</option>
+                                <option value="ko-KR-SunHiNeural">SunHi (한국어 여성)</option>
+                                <option value="en-US-AriaNeural">Aria (English US 여성)</option>
+                                <option value="en-GB-LibbyNeural">Libby (English UK 여성)</option>
+                                <option value="en-US-JennyNeural">Jenny (English US 여성)</option>
+                                <option value="ja-JP-NanamiNeural">Nanami (일본어 여성)</option>
+                                <option value="ko-KR-InJoonNeural">InJoon (한국어 남성)</option>
+                                <option value="ko-KR-HyunsuNeural">Hyunsu (한국어 남성)</option>
                             </select>
                         </div>
-                        <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+    <span style="font-size:14px; font-weight:bold; color:white;">🚫 불필요한 기호·괄호·이모지 스킵</span>
+    <label class="switch">
+        <input type="checkbox" id="tts-skip-symbols" onchange="saveTTSConfig()">
+        <span class="slider round"></span>
+    </label>
+</div>
+<div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
                         <div class="list-item" style="border:none; padding:10px 0;">
                             <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 인식 엔진 (STT)</span>
                             <select id="stt-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
@@ -643,6 +694,11 @@
                                 <span class="slider round"></span>
                             </label>
                         </div>
+                        <div class="list-item" style="border:none; padding:10px 0; display: flex; justify-content: center;">
+                            <button onclick="stopTTS()" style="background-color: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+                                ⏹️ 음성 출력 즉시 중지
+                            </button>
+                        </div>
                         <div id="tts-status" style="color:var(--success); font-size:11px; margin-top:15px; text-align:center; display:none;">설정이 저장되었습니다!</div>
                     </div>
                 </div>
@@ -651,7 +707,7 @@
     </div>
     
     <!-- Code Editor Modal (Separate from sidebar modals) -->
-    <div class="modal-overlay" id="modal-editor-overlay" onclick="closeEditorModal(event)">
+    <div class="modal-overlay" id="modal-editor-overlay" onclick="closeEditorModal(event)" style="z-index: 2000;">
         <div class="modal-content" id="modal-editor-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2 id="editor-title">📝 Code Editor</h2>
@@ -670,6 +726,39 @@
     </div>
 
     <script>
+        {% raw %}
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("JS Error: " + message + " at " + lineno + ":" + colno);
+            console.error("Global JS Error:", message, source, lineno, colno, error);
+            document.body.innerHTML += '<div style="color:red;z-index:9999;position:absolute;top:0;">' + message + '</div>';
+            return true;
+        };
+
+        let dashboardLang = localStorage.getItem('dashboard_lang') || 'ko';
+        
+        function toggleLang() {
+            dashboardLang = dashboardLang === 'ko' ? 'en' : 'ko';
+            localStorage.setItem('dashboard_lang', dashboardLang);
+            applyLang();
+        }
+        
+        function applyLang() {
+            const btn = document.getElementById('lang-btn');
+            if (btn) btn.innerText = dashboardLang === 'ko' ? '🇰🇷 KR' : '🇺🇸 EN';
+            
+            document.querySelectorAll('[data-ko]').forEach(el => {
+                if (el.tagName === 'INPUT' && el.type === 'text') {
+                    el.placeholder = el.getAttribute('data-' + dashboardLang);
+                } else {
+                    el.innerText = el.getAttribute('data-' + dashboardLang);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            applyLang();
+        });
+
         let editorInstance = null;
         let currentEditFile = { type: null, name: null };
 
@@ -826,7 +915,7 @@
                                 const { done, value } = await reader.read();
                                 if (done) break;
                                 
-                                const lines = decoder.decode(value).split('\n');
+                                const lines = decoder.decode(value).split('n');
                                 for (const line of lines) {
                                     if (line.startsWith('data: ')) {
                                         try {
@@ -880,8 +969,11 @@
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-tentacles').style.display = 'none';
             document.getElementById('modal-skills').style.display = 'none';
+            document.getElementById('modal-configs').style.display = 'none';
             document.getElementById('modal-env').style.display = 'none';
             document.getElementById('modal-tts').style.display = 'none';
+            const mge = document.getElementById('modal-gui-editor');
+            if(mge) mge.style.display = 'none';
             
             document.getElementById(targetId).style.display = 'block';
             document.getElementById('modal-overlay').style.display = 'flex';
@@ -892,6 +984,181 @@
                 document.getElementById('modal-overlay').style.display = 'none';
             }
         }
+
+        async function fetchConfigs() {
+            try {
+                const res = await fetch('/api/config_list');
+                const configs = await res.json();
+                
+                const list = document.getElementById('config-list');
+                list.innerHTML = '';
+                
+                if(configs.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; color:#64748b; font-size:12px;">No config files found.</div>';
+                    return;
+                }
+                
+                configs.forEach(conf => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    div.innerHTML = `
+                        <span style="font-size:13px; flex-grow:1;">${conf}</span>
+                        <div>
+                            <button class="edit-btn" style="color:#10b981; border-color:#10b981;" onclick="openGuiConfig('${conf}')">⚙️ Easy</button>
+                            <button class="edit-btn" onclick="openEditorModal('config', '${conf}')">💻 Code</button>
+                            <button class="edit-btn" style="color:#ef4444; border-color:#ef4444;" onclick="resetConfig('${conf}')">🔄 Reset</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch(e) {
+                console.error("Failed to load configs", e);
+            }
+        }
+        
+        let currentGuiConfig = null;
+        let guiConfigData = null;
+
+        async function resetConfig(confName) {
+            if(!confirm("해당 설정 파일을 기본값으로 초기화하시겠습니까?")) return;
+            try {
+                const res = await fetch('/api/config_reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: confName})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert("초기화되었습니다.");
+                } else {
+                    alert("오류: " + data.error);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function openGuiConfig(confName) {
+            currentGuiConfig = confName;
+            openModal('modal-gui-editor', '⚙️ 간편 설정: ' + confName);
+            const container = document.getElementById('gui-form-container');
+            container.innerHTML = '<div style="text-align:center;">Loading...</div>';
+            
+            try {
+                const res = await fetch(`/api/editor/read?type=config&name=${confName}`);
+                const data = await res.json();
+                if(data.error) {
+                    container.innerHTML = '<div style="color:var(--danger)">Error loading config</div>';
+                    return;
+                }
+                
+                guiConfigData = JSON.parse(data.content);
+                renderGuiForm(confName, guiConfigData, container);
+                
+            } catch(e) {
+                container.innerHTML = '<div style="color:var(--warning)">JSON 파싱 오류가 있습니다.<br>전문가 모드(💻 Code)에서 문법 오류를 먼저 수정해 주세요.</div>';
+            }
+        }
+
+        function renderGuiForm(confName, data, container) {
+            let html = '';
+            if (confName === 'weather_config.json') {
+                const cities = Array.isArray(data.cities) ? data.cities.join(', ') : '';
+                const lang = data.language || 'ko';
+                html += `
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">📍 지역 (Cities)</label>
+                        <input type="text" id="gui-weather-cities" value="${cities}" placeholder="Seoul, Busan, Tokyo" style="width:100%; box-sizing:border-box;">
+                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분하여 영문 도시명을 입력하세요.</div>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🌐 언어 (Language)</label>
+                        <select id="gui-weather-lang" style="width:100%; padding:10px; background-color:var(--panel-bg); color:white; border:1px solid var(--border); border-radius:6px; outline:none;">
+                            <option value="ko" ${lang === 'ko' ? 'selected' : ''}>한국어 (Korean)</option>
+                            <option value="en" ${lang === 'en' ? 'selected' : ''}>영어 (English)</option>
+                        </select>
+                    </div>
+                `;
+            } else if (confName === 'keyword_config.json') {
+                const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
+                html += `
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔍 추적 키워드 (Keywords)</label>
+                        <input type="text" id="gui-keyword-list" value="${kws}" placeholder="RTX 5090, 특가, LLM" style="width:100%; box-sizing:border-box;">
+                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분하여 관심사를 입력하세요.</div>
+                    </div>
+                `;
+            } else if (confName === 'email_config.json') {
+                const email = data.email || '';
+                const pwd = data.password || '';
+                const imap = data.imap_server || 'imap.gmail.com';
+                const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
+                html += `
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">📧 이메일 계정 (Email)</label>
+                        <input type="text" id="gui-email-addr" value="${email}" style="width:100%; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔑 앱 비밀번호 (App Password)</label>
+                        <input type="password" id="gui-email-pwd" value="${pwd}" style="width:100%; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🖥️ IMAP 서버</label>
+                        <input type="text" id="gui-email-imap" value="${imap}" style="width:100%; box-sizing:border-box;">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">🔍 감시 키워드 (Keywords)</label>
+                        <input type="text" id="gui-email-kws" value="${kws}" placeholder="결제, 청구, 중요" style="width:100%; box-sizing:border-box;">
+                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">쉼표(,)로 구분. 해당 키워드가 포함된 메일만 텔레그램으로 보냅니다.</div>
+                    </div>
+                `;
+            } else {
+                html = `<div style="color:var(--warning); padding:10px;">이 설정 파일은 간편 설정 UI를 아직 지원하지 않습니다.<br>전문가 모드(💻 Code)를 이용해 주세요.</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        async function saveGuiConfig() {
+            if(!currentGuiConfig || !guiConfigData) return;
+            
+            if (currentGuiConfig === 'weather_config.json') {
+                const c_str = document.getElementById('gui-weather-cities').value;
+                guiConfigData.cities = c_str.split(',').map(s=>s.trim()).filter(s=>s);
+                guiConfigData.language = document.getElementById('gui-weather-lang').value;
+            } else if (currentGuiConfig === 'keyword_config.json') {
+                const k_str = document.getElementById('gui-keyword-list').value;
+                guiConfigData.keywords = k_str.split(',').map(s=>s.trim()).filter(s=>s);
+            } else if (currentGuiConfig === 'email_config.json') {
+                guiConfigData.email = document.getElementById('gui-email-addr').value;
+                guiConfigData.password = document.getElementById('gui-email-pwd').value;
+                guiConfigData.imap_server = document.getElementById('gui-email-imap').value;
+                const k_str = document.getElementById('gui-email-kws').value;
+                guiConfigData.keywords = k_str.split(',').map(s=>s.trim()).filter(s=>s);
+            }
+
+            try {
+                const res = await fetch('/api/editor/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: 'config',
+                        name: currentGuiConfig,
+                        content: JSON.stringify(guiConfigData, null, 4)
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    const status = document.getElementById('gui-status');
+                    status.style.display = 'inline';
+                    setTimeout(() => status.style.display='none', 2000);
+                } else {
+                    alert("저장 실패: " + data.error);
+                }
+            } catch(e) {
+                alert("저장 중 오류가 발생했습니다.");
+            }
+        }
+        
+        // 주기적 실행 대신 최초에 한 번만 로드
+        setTimeout(fetchConfigs, 1000);
 
         // 토큰 로딩
         async function fetchConfig() {
@@ -915,6 +1182,8 @@
                 
                 if(data.stt_engine) document.getElementById('stt-engine').value = data.stt_engine;
                 if(data.tg_voice_enabled !== undefined) document.getElementById('tg-voice-enabled').checked = data.tg_voice_enabled;
+                if(data.tts_skip_symbols !== undefined) document.getElementById('tts-skip-symbols').checked = data.tts_skip_symbols;
+                if(data.tts_destination) document.getElementById('tts-destination').value = data.tts_destination;
             } catch(e) { console.error(e); }
         }
 
@@ -926,6 +1195,8 @@
             const tts_voice = document.getElementById('tts-voice').value;
             const stt_engine = document.getElementById('stt-engine').value;
             const tg_voice_enabled = document.getElementById('tg-voice-enabled').checked;
+            const tts_skip_symbols = document.getElementById('tts-skip-symbols').checked;
+            const tts_destination = document.getElementById('tts-destination').value;
             
             try {
                 await fetch('/api/config', {
@@ -938,12 +1209,27 @@
                         tts_engine: tts_engine,
                         tts_voice: tts_voice,
                         stt_engine: stt_engine,
-                        tg_voice_enabled: tg_voice_enabled
+                        tg_voice_enabled: tg_voice_enabled,
+                        tts_skip_symbols: tts_skip_symbols,
+                        tts_destination: tts_destination
                     })
                 });
                 const status = document.getElementById('tts-status');
                 status.style.display = 'block';
                 setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        async function stopTTS() {
+            try {
+                const res = await fetch('/api/tts/stop', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    const status = document.getElementById('tts-status');
+                    status.innerText = "🔇 음성 출력이 중지되었습니다.";
+                    status.style.display = 'block';
+                    setTimeout(() => { status.style.display = 'none'; status.innerText = "설정이 저장되었습니다!"; }, 2000);
+                }
             } catch(e) { console.error(e); }
         }
 
@@ -1043,7 +1329,7 @@
                 
                 const eList = document.getElementById('error-list');
                 if(Object.keys(data.errors).length > 0) {
-                    eList.innerHTML = JSON.stringify(data.errors, null, 2).replace(/\n/g, '<br>');
+                    eList.innerHTML = JSON.stringify(data.errors, null, 2).replace(/n/g, '<br>');
                 } else {
                     eList.innerHTML = 'No errors detected. ✅';
                 }
@@ -1168,7 +1454,7 @@
                 if (done) break;
                 
                 buffer += decoder.decode(value, {stream: true});
-                const lines = buffer.split('\n\n');
+                const lines = buffer.split('nn');
                 buffer = lines.pop(); 
                 
                 for(const line of lines) {
@@ -1181,10 +1467,10 @@
                                 astDiv.innerText = currentText;
                                 container.scrollTop = container.scrollHeight;
                             } else if(data.status === 'system') {
-                                currentText += "\n\n[시스템]: " + data.content;
+                                currentText += "nn[시스템]: " + data.content;
                                 astDiv.innerText = currentText;
                             } else if(data.status === 'error') {
-                                currentText += "\n\n❌ [오류]: " + data.content;
+                                currentText += "nn❌ [오류]: " + data.content;
                                 astDiv.innerText = currentText;
                                 container.scrollTop = container.scrollHeight;
                             } else if(data.status === 'command_request') {
@@ -1194,7 +1480,7 @@
                                     <div>🛑 <b>명령어 실행 대기 중</b></div>
                                     <div style="margin-top:10px; color:#fbbf24;">${data.content}</div>
                                     <div class="cmd-actions">
-                                        <button class="cmd-btn btn-yes" onclick="approveCmd(this, '${data.content.replace(/'/g, "\\'")}')">✅ 허락</button>
+                                        <button class="cmd-btn btn-yes" onclick="approveCmd(this, '${data.content.replace(/'/g, "'")}')">✅ 허락</button>
                                         <button class="cmd-btn btn-no" onclick="declineCmd(this)">❌ 거부</button>
                                     </div>
                                 `;
@@ -1211,6 +1497,7 @@
         fetchConfig();
         fetchStatus();
         fetchMemory();
+        {% endraw %}
     </script>
 </body>
 </html>

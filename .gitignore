@@ -16,6 +16,7 @@ venv.bak/
 # Minos Project Specific Private Data
 state/bot_config.json
 state/user_states.json
+llm_config.json
 memory_logs/
 memory_backup/
 scratch/

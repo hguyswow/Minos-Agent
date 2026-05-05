@@ -1,6 +1,13 @@
+# -*- coding: utf-8 -*-
 import os
+import sys
+import io
 import json
 import psutil
+
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 from flask import Flask, render_template, request, Response, jsonify
 from core_engine import generate_response_stream
 from memory_engine import MemoryEngine
@@ -65,8 +72,46 @@ def sync_to_telegram(chat_id, text):
             # 마크다운 파싱 에러 시 일반 텍스트로 재시도
             payload_plain = {"chat_id": chat_id, "text": text}
             requests.post(url, json=payload_plain, timeout=3)
-    except:
-        pass
+    except Exception as _e:
+        print(f"[Dashboard] 텔레그램 메시지 전송 실패 (무시): {_e}")
+
+def sync_voice_to_telegram(chat_id, audio_path):
+    if chat_id == "web_dashboard":
+        return
+    token = get_telegram_token()
+    if not token or not audio_path or not os.path.exists(audio_path):
+        return
+    url = f"https://api.telegram.org/bot{token}/sendVoice"
+    
+    try:
+        with open(audio_path, 'rb') as f:
+            files = {'voice': f}
+            data = {'chat_id': chat_id}
+            requests.post(url, data=data, files=files, timeout=10)
+    except Exception as e:
+        print(f"동기 텔레그램 음성 발송 실패: {e}")
+
+def handle_tts_output(chat_id, text):
+    config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
+    config = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8-sig') as f:
+                config = json.load(f)
+        except: pass
+        
+    dest = config.get("tts_destination", "local")
+    from tts_engine import tts, generate_tts_file
+    
+    if dest in ["local", "both"]:
+        tts.speak(text)
+        
+    if dest in ["telegram", "both"]:
+        audio_path = generate_tts_file(text, config)
+        if audio_path:
+            sync_voice_to_telegram(chat_id, audio_path)
+            try: os.remove(audio_path)
+            except: pass
 
 def get_user_state():
     chat_id = get_main_chat_id()
@@ -214,13 +259,21 @@ def toggle_skill():
 
 @app.route('/api/editor/read', methods=['GET'])
 def editor_read():
-    file_type = request.args.get('type') # 'skill' or 'tentacle'
+    file_type = request.args.get('type') # 'skill', 'tentacle', 'config'
     file_name = request.args.get('name')
     
     if not file_name or '..' in file_name or '/' in file_name or '\\' in file_name:
         return jsonify({"error": "Invalid file name"}), 400
         
-    target_dir = os.path.join(BASE_DIR, "skill_system", "skills") if file_type == 'skill' else os.path.join(BASE_DIR, "tentacles")
+    if file_type == 'skill':
+        target_dir = os.path.join(BASE_DIR, "skill_system", "skills")
+    elif file_type == 'tentacle':
+        target_dir = os.path.join(BASE_DIR, "tentacles")
+    elif file_type == 'config':
+        target_dir = os.path.join(BASE_DIR, "tentacles", "data")
+    else:
+        return jsonify({"error": "Invalid type"}), 400
+        
     file_path = os.path.join(target_dir, file_name)
     
     if not os.path.exists(file_path):
@@ -241,7 +294,15 @@ def editor_save():
     if not file_name or '..' in file_name or '/' in file_name or '\\' in file_name:
         return jsonify({"success": False, "error": "Invalid file name"})
         
-    target_dir = os.path.join(BASE_DIR, "skill_system", "skills") if file_type == 'skill' else os.path.join(BASE_DIR, "tentacles")
+    if file_type == 'skill':
+        target_dir = os.path.join(BASE_DIR, "skill_system", "skills")
+    elif file_type == 'tentacle':
+        target_dir = os.path.join(BASE_DIR, "tentacles")
+    elif file_type == 'config':
+        target_dir = os.path.join(BASE_DIR, "tentacles", "data")
+    else:
+        return jsonify({"success": False, "error": "Invalid type"})
+        
     file_path = os.path.join(target_dir, file_name)
     
     if not os.path.exists(file_path):
@@ -252,11 +313,68 @@ def editor_save():
         
     return jsonify({"success": True})
 
+@app.route('/api/config_reset', methods=['POST'])
+def config_reset():
+    data = request.json
+    file_name = data.get('name')
+    
+    if not file_name or '..' in file_name or '/' in file_name or '\\' in file_name:
+        return jsonify({"success": False, "error": "Invalid file name"})
+        
+    target_dir = os.path.join(BASE_DIR, "tentacles", "data")
+    file_path = os.path.join(target_dir, file_name)
+    
+    default_data = None
+    if file_name == "weather_config.json":
+        default_data = {
+            "cities": ["Seoul"],
+            "language": "ko",
+            "description": "원하는 도시 이름을 영문으로 배열에 추가하세요 (예: Busan, Jeju, Tokyo)"
+        }
+    elif file_name == "keyword_config.json":
+        default_data = {
+            "keywords": ["RTX 5090", "특가", "LLM", "업데이트"]
+        }
+    elif file_name == "email_config.json":
+        default_data = {
+            "email": "your_email@gmail.com",
+            "password": "your_app_password",
+            "imap_server": "imap.gmail.com",
+            "keywords": ["결제", "청구", "중요", "환불"]
+        }
+    else:
+        return jsonify({"success": False, "error": "이 파일은 초기화(기본값 복원)를 지원하지 않습니다."})
+        
+    os.makedirs(target_dir, exist_ok=True)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(default_data, f, ensure_ascii=False, indent=4)
+        
+    return jsonify({"success": True})
+
+@app.route('/api/config_list')
+def get_config_list():
+    target_dir = os.path.join(BASE_DIR, "tentacles", "data")
+    configs = []
+    if os.path.exists(target_dir):
+        for f in os.listdir(target_dir):
+            if f.endswith('.json'):
+                configs.append(f)
+    return jsonify(configs)
+
 @app.route('/api/memory')
 def get_memory():
     chat_id = get_main_chat_id()
     mem_data = memory.load_memory(chat_id)
     return jsonify(mem_data.get("working_memory", []))
+
+@app.route('/api/tts/stop', methods=['POST'])
+def tts_stop():
+    try:
+        from tts_engine import tts
+        tts.stop()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -279,7 +397,7 @@ def chat():
             yield f"data: {json.dumps({'status': 'error', 'content': '엔진에서 응답이 없습니다. Ollama 서버를 확인하세요.'})}\n\n"
         elif full_reply:
             sync_to_telegram(chat_id, full_reply)
-            tts.speak(full_reply)
+            handle_tts_output(chat_id, full_reply)
             
     return Response(generate(), mimetype='text/event-stream')
 
@@ -328,6 +446,7 @@ def chat_voice():
                 yield f"data: {json.dumps({'status': 'error', 'content': '엔진에서 응답이 없습니다. Ollama 서버를 확인하세요.'})}\n\n"
             elif full_reply:
                 sync_to_telegram(chat_id, full_reply)
+                handle_tts_output(chat_id, full_reply)
                 
         return Response(generate(), mimetype='text/event-stream')
     finally:
@@ -344,8 +463,8 @@ def approve_command():
     def execute_and_stream():
         yield f"data: {json.dumps({'status': 'system', 'content': f'명령어 실행 중: {cmd}'})}\n\n"
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-            output = result.stdout + result.stderr
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', timeout=30)
+            output = str(result.stdout or "") + "\n" + str(result.stderr or "")
             if not output.strip():
                 output = "(출력 없음)"
         except Exception as e:
@@ -364,7 +483,7 @@ def approve_command():
             
         if full_reply:
             sync_to_telegram(chat_id, full_reply)
-            tts.speak(full_reply)
+            handle_tts_output(chat_id, full_reply)
             
     return Response(execute_and_stream(), mimetype='text/event-stream')
 
@@ -382,7 +501,7 @@ def decline_command():
             
         if full_reply:
             sync_to_telegram(chat_id, full_reply)
-            tts.speak(full_reply)
+            handle_tts_output(chat_id, full_reply)
             
     return Response(stream_rejection(), mimetype='text/event-stream')
 
@@ -425,6 +544,8 @@ def handle_config():
         if 'tts_voice' in data: config['tts_voice'] = data['tts_voice']
         if 'stt_engine' in data: config['stt_engine'] = data['stt_engine']
         if 'tg_voice_enabled' in data: config['tg_voice_enabled'] = data['tg_voice_enabled']
+        if 'tts_skip_symbols' in data: config['tts_skip_symbols'] = data['tts_skip_symbols']
+        if 'tts_destination' in data: config['tts_destination'] = data['tts_destination']
         
         import tempfile
         import shutil
