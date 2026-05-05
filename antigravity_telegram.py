@@ -1122,7 +1122,17 @@ async def tentacle_signal_checker(application):
             if os.path.exists(signal_file_path):
                 with open(signal_file_path, 'r', encoding='utf-8') as f:
                     signals = json.load(f)
-                    
+                
+                chat_ids = list(user_states.keys())
+                if not chat_ids:
+                    await asyncio.sleep(60)
+                    continue
+                chat_id = chat_ids[-1]
+
+                # ── Alert Summarizer: 이번 사이클에서 새로 감지된 신호 수집 ──
+                upgrade_signals = []
+                new_signals = {}
+
                 for filename, sig_info in signals.items():
                     sig_time = sig_info.get("timestamp")
                     sig_message = sig_info.get("message", "")
@@ -1130,27 +1140,50 @@ async def tentacle_signal_checker(application):
                     if reported_signals.get(filename) != sig_time:
                         reported_signals[filename] = sig_time
                         
-                        chat_ids = list(user_states.keys())
-                        if not chat_ids:
-                            continue
-                        chat_id = chat_ids[-1]
-
                         if filename == "self_upgrade_tentacle.py":
-                            await _send_upgrade_proposals(application, chat_id, sig_message)
+                            upgrade_signals.append((filename, sig_message))
                         else:
-                            ai_prompt = (
-                                f"[긴급 시스템 명령 - 자율신경계(문어발) 신호 수신]\n"
-                                f"백그라운드에서 동작하는 당신의 보조 스크립트(문어발) '{filename}'에서 "
-                                f"다음 유용한 정보를 수집하여 보고했습니다:\n\n{sig_message}\n\n"
-                                f"사용자에게 이 정보를 기반으로 아침 인사나 주식 알림 등 친절하고 간결한 선톡 브리핑을 즉시 작성하여 보내십시오."
-                            )
-                            memory.add_message(chat_id=chat_id, role="user", content=ai_prompt)
-                            await stream_llm_response(None, None, chat_id, application=application)
-                            
+                            new_signals[filename] = sig_message
+
+                # 업그레이드 제안은 기존대로 개별 처리
+                for filename, sig_message in upgrade_signals:
+                    await _send_upgrade_proposals(application, chat_id, sig_message)
+
+                # 새 신호가 1개이면 기존 방식으로, 2개 이상이면 병합하여 단일 브리핑
+                if len(new_signals) == 1:
+                    filename, sig_message = list(new_signals.items())[0]
+                    ai_prompt = (
+                        f"[긴급 시스템 명령 - 자율신경계(문어발) 신호 수신]\n"
+                        f"백그라운드 보조 스크립트(문어발) '{filename}'에서 "
+                        f"다음 정보를 보고했습니다:\n\n{sig_message}\n\n"
+                        f"사용자에게 이 정보를 기반으로 친절하고 간결한 브리핑을 즉시 작성하여 보내십시오."
+                    )
+                    memory.add_message(chat_id=chat_id, role="user", content=ai_prompt)
+                    await stream_llm_response(None, None, chat_id, application=application)
+
+                elif len(new_signals) >= 2:
+                    # ── 2개 이상 신호를 하나로 묶어 단일 메시지 생성 ──
+                    combined_parts = []
+                    for fname, msg in new_signals.items():
+                        label = fname.replace("_tentacle.py", "").replace("_", " ").title()
+                        combined_parts.append(f"[{label}]\n{msg}")
+                    combined_body = "\n\n---\n\n".join(combined_parts)
+                    
+                    ai_prompt = (
+                        f"[긴급 시스템 명령 - 다중 문어발 신호 통합 브리핑 요청]\n"
+                        f"총 {len(new_signals)}개의 보조 스크립트가 동시에 보고를 완료했습니다.\n"
+                        f"아래 각 항목을 하나의 깔끔한 통합 메시지로 정리하여 사용자에게 전달하십시오. "
+                        f"중복 인사는 한 번만, 각 항목은 이모지와 함께 간결하게:\n\n"
+                        f"{combined_body}"
+                    )
+                    memory.add_message(chat_id=chat_id, role="user", content=ai_prompt)
+                    await stream_llm_response(None, None, chat_id, application=application)
+                        
         except Exception as e:
             print(f"Tentacle signal watchdog error: {e}")
             
         await asyncio.sleep(60)
+
 
 async def post_init(application: Application):
     import asyncio
