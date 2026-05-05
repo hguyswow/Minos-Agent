@@ -118,6 +118,7 @@ class TTSEngine:
 
         # 스피치용 텍스트 클리닝
         clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+        clean_text = re.sub(r'#+\s*', '', clean_text)   # ## 헤딩 제거 (샘플시인 포함)
         clean_text = re.sub(r'[*_`~]', '', clean_text)
         
         if self._skip_symbols:
@@ -149,6 +150,7 @@ tts = TTSEngine(skip_symbols=config.get('tts_skip_symbols', False))
 def generate_tts_file(text, config):
     """지정된 텍스트와 설정으로 오디오 파일을 생성하고 해당 경로를 반환합니다. 호출자가 직접 삭제해야 합니다."""
     clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+    clean_text = re.sub(r'#+\s*', '', clean_text)   # ## 헤딩 제거 (샘플시인 포함)
     clean_text = re.sub(r'[*_`~]', '', clean_text)
     if config.get("tts_skip_symbols", False):
         clean_text = re.sub(r'[\U0001F600-\U0001F64F]', '', clean_text)
