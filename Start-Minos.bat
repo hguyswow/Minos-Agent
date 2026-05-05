@@ -99,15 +99,18 @@ REM =====================================================
 echo  [5/5] Launching Minos modules...
 
 echo  Starting Web Dashboard...
-start "Minos Dashboard" cmd /k "title Minos Dashboard - http://localhost:5000 & color 0A & set PYTHONIOENCODING=utf-8 & python dashboard_server.py"
+start /min "Minos Dashboard - http://localhost:5000" cmd /k "title Minos Dashboard - http://localhost:5000 & color 0A & set PYTHONIOENCODING=utf-8 & python dashboard_server.py"
 
 echo  Waiting for Dashboard to initialize (3s)...
 timeout /t 3 /nobreak >nul
 
 echo  Starting Telegram Bot and Core Engine...
-start "Minos Telegram Bot" cmd /k "title Minos Telegram Bot & color 0E & set PYTHONIOENCODING=utf-8 & python antigravity_telegram.py"
+start /min "Minos Telegram Bot" cmd /k "title Minos Telegram Bot & color 0E & set PYTHONIOENCODING=utf-8 & python antigravity_telegram.py"
 
 timeout /t 2 /nobreak >nul
+
+REM 백그라운드에서 창 자동 최소화 실행 (6초 후, 비동기)
+start /b "" powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Minos-HideWindows.ps1" -DelaySeconds 6
 
 REM =====================================================
 REM  Startup Complete
@@ -130,7 +133,9 @@ echo  Select an option:
 echo    [1] Open Dashboard in browser
 echo    [2] Open Telegram bot in browser
 echo    [3] Open both
-echo    [Enter] Close launcher
+echo    [Enter] Close launcher now
+echo.
+echo  (This window will auto-close in 10 seconds)
 echo.
 set /p OPEN_CHOICE= Choice (1/2/3 or Enter): 
 
@@ -146,6 +151,6 @@ if "%OPEN_CHOICE%"=="3" (
 )
 
 echo.
-echo  Launcher closed. Minos services continue running in background.
-echo.
-pause >nul
+echo  Minos is running in the background. This window will close automatically.
+timeout /t 5 /nobreak >nul
+exit
