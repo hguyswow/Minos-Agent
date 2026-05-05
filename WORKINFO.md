@@ -120,3 +120,29 @@
 - **AI 레벨**: 자율 진화 성장 중 (레벨 및 스코어는 `ai_scores.json`에서 능동 관리 중)
 - **구동 엔진**: Ollama / TurboQuant / OpenCode Go API(Cloud) 하이브리드 체제 (안정적 스위칭 검증)
 - **리팩토링 상태**: 텔레그램 코어 및 대시보드 UI 대폭 개선 완료, 에러율(0) 검증.
+
+---
+
+## 🚨 [영구 강제 수칙] GitHub Push 보안 프로토콜
+
+> **이 수칙은 어떤 상황에서도 예외 없이 적용된다.**  
+> Anti-Gravity AI Agent는 `git push` 명령 전 반드시 아래 절차를 따른다.
+
+### ❌ GitHub에 절대 올려서는 안 되는 것
+1. **실제 이메일 주소** (소스 코드, HTML, 주석 포함)
+2. **텔레그램 Bot Token** (`state/bot_config.json` → gitignore 필수)
+3. **LLM API 키 / 엔드포인트** (`llm_config.json` → gitignore 필수)
+4. **실제 은행 계좌번호, PayPal 링크, 실명, 전화번호**
+5. **하드코딩된 Secret Key / API Token**
+6. **대화 기억 로그** (`memory_logs/`, `tentacles/logs/`, `logs/`)
+7. **`.bak` 백업 파일** (이전 버전에 토큰이 포함될 수 있음)
+
+### ✅ Push 전 필수 실행 명령
+```bash
+python scratch/check_secrets.py
+```
+→ `[OK] 민감 정보 없음` 확인 후에만 push 진행.
+
+### 📌 상세 절차 문서
+→ `GITHUB_PUSH_CHECKLIST.md` 참조
+
