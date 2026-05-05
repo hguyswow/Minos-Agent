@@ -26,6 +26,13 @@ from memory_engine import MemoryEngine
 sys.path.append(os.path.join(BASE_DIR, 'skill_system'))
 from skill_registry import SkillRegistry
 
+# ── CMD 블록 제거 헬퍼 (체팅창 전용) ─────────────────────
+def strip_cmd_for_display(text: str) -> str:
+    """<CMD>...</CMD> 태그를 제거하고 연속 빈줄을 정리하여 반환"""
+    cleaned = re.sub(r'<CMD>[\s\S]*?</CMD>', '', text, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    return cleaned.strip()
+
 def get_bot_config():
     config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
     if os.path.exists(config_file):
@@ -879,11 +886,14 @@ async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE
                                 current_time = time.time()
                                 if current_time - last_update_time > update_interval:
                                     try:
-                                        await bot.edit_message_text(
-                                            chat_id=chat_id,
-                                            message_id=status_message.message_id,
-                                            text=reply_text + " ✍️"
-                                        )
+                                        # CMD 블록 제거 후 표시 (실제 내부 로직은 reply_text 원본으로 유지)
+                                        display_text = strip_cmd_for_display(reply_text)
+                                        if display_text:
+                                            await bot.edit_message_text(
+                                                chat_id=chat_id,
+                                                message_id=status_message.message_id,
+                                                text=display_text + " ✍️"
+                                            )
                                         last_update_time = current_time
                                     except telegram.error.BadRequest:
                                         pass
@@ -893,10 +903,12 @@ async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE
         # 스트리밍 종료 후 최종 텍스트 업데이트
         if reply_text.strip():
             try:
+                # CMD 블록 제거 후 최종 표시
+                final_display = strip_cmd_for_display(reply_text)
                 await bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=status_message.message_id,
-                    text=reply_text
+                    text=final_display if final_display else "⏳ 스킬 실행 중..."
                 )
             except telegram.error.BadRequest:
                 pass
