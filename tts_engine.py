@@ -147,6 +147,28 @@ class TTSEngine:
 config = get_bot_config()
 tts = TTSEngine(skip_symbols=config.get('tts_skip_symbols', False))
 
+def _run_coroutine_in_new_thread(coro):
+    """실행 중인 event loop 충돌을 방지하기 위해 새 스레드에서 코루틴을 실행합니다."""
+    import threading
+    res_list = []
+    err_list = []
+    def worker():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            res = loop.run_until_complete(coro)
+            res_list.append(res)
+        except Exception as e:
+            err_list.append(e)
+        finally:
+            loop.close()
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join()
+    if err_list:
+        raise err_list[0]
+    return res_list[0] if res_list else None
+
 def generate_tts_file(text, config):
     """지정된 텍스트와 설정으로 오디오 파일을 생성하고 해당 경로를 반환합니다. 호출자가 직접 삭제해야 합니다."""
     clean_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
@@ -172,7 +194,7 @@ def generate_tts_file(text, config):
             async def gen_edge():
                 communicate = edge_tts.Communicate(clean_text, voice)
                 await communicate.save(temp_audio)
-            asyncio.run(gen_edge())
+            _run_coroutine_in_new_thread(gen_edge())
         elif engine_type == "google" and GTTS_AVAILABLE:
             tts_google = gTTS(text=clean_text, lang='ko', slow=(rate < 150))
             tts_google.save(temp_audio)
