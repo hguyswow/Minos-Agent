@@ -52,10 +52,13 @@ def load_system_prompt():
 
 SYSTEM_PROMPT = load_system_prompt()
 
-def get_dynamic_prompt(chat_id: str) -> str:
-    """시스템 부하 상태와 스킬 목록을 주입한 동적 프롬프트를 생성합니다."""
+def get_static_system_prompt() -> str:
+    """Ollama 시스템 프롬프트 캐싱 극대화를 위해 변하지 않는 정적 스킬 목록과 지침만 반환합니다."""
     skills_index_text = skills.get_skills_index_text()
-    
+    return SYSTEM_PROMPT + f"\n\n[장착한 스킬 목록]\n{skills_index_text}"
+
+def get_dynamic_reminder(chat_id: str) -> str:
+    """CPU/RAM 부하 및 기억 포화도 등의 실시간 변동 데이터를 정적 캐시 파괴 없이 사용자 쿼리 끝부분에 주입하도록 설계된 동적 리마인더입니다."""
     mem_data = memory.load_memory(chat_id)
     working_count = len(mem_data.get("working_memory", [])) // 2 
     max_count = memory.max_working_memory // 2
@@ -63,34 +66,40 @@ def get_dynamic_prompt(chat_id: str) -> str:
     ram_percent = psutil.virtual_memory().percent
     
     self_awareness_prompt = (
-        f"\n\n[당신의 현재 상태 (Self-Awareness)]\n"
+        f"\n\n[당신의 실시간 시스템 상태 (Self-Awareness)]\n"
         f"- 현재 구동 중인 AI 두뇌(모델명): {MODEL_NAME} ({active_env})\n"
-        f"- 단기 기억 포화도: {working_count} / {max_count} (최대치 도달 시 오래된 기억부터 강제 유실됨)\n"
+        f"- 단기 기억 포화도: {working_count} / {max_count} (최대치 도달 시 장기 기억 압축 마이그레이션이 가동됨)\n"
         f"- 구동 환경 부하: CPU {cpu_percent}%, RAM {ram_percent}%\n"
-        f"* 지시사항: 당신은 매 턴마다 자신의 위 상태를 인지해야 합니다. 만약 단기 기억이 꽉 차가거나 시스템 부하가 높다면, 대답 시 먼저 사용자에게 '기억 정리가 필요하다'고 건의하십시오."
+        f"* 지시사항: 위의 시스템 상태를 실시간으로 참고하여, 만약 단기 기억 포화도가 90% 이상이거나 CPU/RAM 부하가 85%를 초과할 경우 대화 중 사용자에게 '기억 정리(Memory Cleanup)'를 정중히 권고하세요."
     )
-    
-    return SYSTEM_PROMPT + f"\n\n[장착한 스킬 목록]\n{skills_index_text}" + self_awareness_prompt
+    return self_awareness_prompt
 
 def generate_response_stream(chat_id: str, current_query: str = "", memory_mode: str = 'embedding'):
     """
     LLM에 요청을 보내고 스트리밍 응답을 Generator 형태로 반환합니다.
+    [v3 - 캐시 최적화 및 Ollama 추론 가속 반영]
     yield (status, content) 형태로 반환하여 텔레그램과 대시보드가 범용적으로 사용할 수 있게 합니다.
     status: 'chunk', 'done', 'error'
     """
-    dynamic_system_prompt = get_dynamic_prompt(chat_id)
+    # 1. 정적 프롬프트는 100% 캐싱되도록 상단 유지
+    static_system_prompt = get_static_system_prompt()
+    
+    # 2. 동적 데이터(CPU/RAM/기억)는 캐시 파괴 방지를 위해 오직 쿼리 끝부분 리마인더와 병합
+    dynamic_reminder = get_dynamic_reminder(chat_id)
     
     # 로컬 모델(특히 작은 모델)이 시스템 프롬프트(영혼)를 망각하는 것을 방지하기 위해 사용자 질문 끝에 말투 리마인더 강제 주입
-    persona_reminder = "\n\n(※ 지시사항: 반드시 '형님!'이라고 부르는 명랑하고 깍듯한 꼬마 비서 '알쫑이/Minos'의 말투를 유지해서 대답하세요.)"
-    optimized_query = current_query + persona_reminder if current_query else persona_reminder
+    persona_reminder = "\n\n(※ 절대 지시: 반드시 '형님!'이라고 부르는 명랑하고 깍듯한 꼬마 비서 '알쫑이/Minos'의 말투를 유지해서 대답하세요.)"
+    
+    optimized_query = (current_query or "") + dynamic_reminder + persona_reminder
 
     optimized_messages = memory.get_optimized_context(
         chat_id=chat_id, 
-        base_system_prompt=dynamic_system_prompt,
+        base_system_prompt=static_system_prompt,
         current_query=optimized_query,
         memory_mode=memory_mode
     )
     
+    # 3. 로컬 Ollama 및 TurboQuant 연산 가속을 위한 options 튜닝
     payload = {
         'model': MODEL_NAME,
         'messages': optimized_messages,
@@ -99,7 +108,14 @@ def generate_response_stream(chat_id: str, current_query: str = "", memory_mode:
         'stream': True,
         'num_ctx': 16384,
         'options': {
-            'num_ctx': 16384
+            'num_ctx': 16384,
+            'num_predict': 384,      # 불필요한 장황 생성 방지 및 속도 극대화
+            'temperature': 0.7,
+            'top_k': 40,
+            'top_p': 0.9,
+            'f16_kv': True,          # 16비트 KV 캐시 반정밀도 가속
+            'use_mmap': True,        # 메모리 고속 매핑 가동
+            'use_mlock': True        # OS 페이지 스왑 아웃 방지
         }
     }
     
