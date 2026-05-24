@@ -100,6 +100,9 @@ def handle_tts_output(chat_id, text):
                 config = json.load(f)
         except: pass
         
+    if not config.get("tts_enabled", False):
+        return
+        
     dest = config.get("tts_destination", "local")
     from tts_engine import tts, generate_tts_file
     
@@ -151,20 +154,71 @@ def index():
         except: pass
     return render_template('index.html', has_token=has_token)
 
+def get_gpu_status_nvidia_smi():
+    """nvidia-smi 명령어를 활용한 상세 GPU 상태 수집 (윈도우 환경 대응 및 폴백 완비)"""
+    try:
+        creationflags = 0
+        if sys.platform == 'win32':
+            import subprocess
+            creationflags = subprocess.CREATE_NO_WINDOW
+            
+        cmd = "nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', timeout=5, creationflags=creationflags)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split(',')
+            if len(parts) >= 4:
+                gpu_load = float(parts[0].strip())
+                vram_used = float(parts[1].strip())
+                vram_total = float(parts[2].strip())
+                gpu_temp = float(parts[3].strip())
+                
+                vram_percent = (vram_used / vram_total) * 100 if vram_total > 0 else 0.0
+                
+                return {
+                    "load": f"{gpu_load:.1f}",
+                    "vram_percent": f"{vram_percent:.1f}",
+                    "vram_used": f"{vram_used:.0f}",
+                    "vram_total": f"{vram_total:.0f}",
+                    "temperature": f"{gpu_temp:.0f}"
+                }
+    except Exception as e:
+        print(f"[get_gpu_status_nvidia_smi] nvidia-smi 호출 실패 (폴백 가동): {e}")
+    return None
+
 @app.route('/api/status')
 def get_status():
     cpu = psutil.cpu_percent()
     ram = psutil.virtual_memory().percent
     
+    # 1. GPU 상세 정보 조회 (nvidia-smi 우선)
     gpu_percent = "--"
     vram_percent = "--"
-    if GPUtil:
-        gpus = GPUtil.getGPUs()
-        if gpus:
-            gpu_percent = f"{gpus[0].load * 100:.1f}"
-            vram_percent = f"{(gpus[0].memoryUsed / gpus[0].memoryTotal) * 100:.1f}"
+    gpu_temp = "--"
+    vram_used = "--"
+    vram_total = "--"
+    
+    nvidia_data = get_gpu_status_nvidia_smi()
+    if nvidia_data:
+        gpu_percent = nvidia_data["load"]
+        vram_percent = nvidia_data["vram_percent"]
+        gpu_temp = nvidia_data["temperature"]
+        vram_used = nvidia_data["vram_used"]
+        vram_total = nvidia_data["vram_total"]
+    elif GPUtil:
+        # GPUtil 폴백
+        try:
+            gpus = GPUtil.getGPUs()
+            if gpus:
+                gpu_percent = f"{gpus[0].load * 100:.1f}"
+                vram_percent = f"{(gpus[0].memoryUsed / gpus[0].memoryTotal) * 100:.1f}"
+                gpu_temp = f"{gpus[0].temperature:.0f}"
+                vram_used = f"{gpus[0].memoryUsed:.0f}"
+                vram_total = f"{gpus[0].memoryTotal:.0f}"
+        except Exception as e:
+            print(f"[get_status] GPUtil 수집 에러: {e}")
             
-    # 문어발 상태
+    # 2. 문어발 상태
     tentacles_dir = os.path.join(BASE_DIR, "tentacles")
     config_file = os.path.join(tentacles_dir, "data", "tentacle_config.json")
     config = {}
@@ -183,7 +237,7 @@ def get_status():
                     "is_on": config.get(tf, True)
                 })
                 
-    # 에러 로그
+    # 3. 에러 로그
     errors = {}
     error_file = os.path.join(tentacles_dir, "logs", "tentacle_errors.json")
     if os.path.exists(error_file):
@@ -192,7 +246,7 @@ def get_status():
                 errors = json.load(f)
         except: pass
 
-    # 스킬(자동 승인) 상태
+    # 4. 스킬(자동 승인) 상태
     skills_dir = os.path.join(BASE_DIR, "skill_system", "skills")
     state = get_user_state()
     auto_skills = state.get("auto_skills", [])
@@ -206,15 +260,30 @@ def get_status():
                     "is_auto": sf in auto_skills
                 })
 
+    # 5. Ollama 컨텍스트 (working_memory) 모니터링 데이터 추가
+    chat_id = get_main_chat_id()
+    mem_data = memory.load_memory(chat_id)
+    working_mem = mem_data.get("working_memory", [])
+    mem_count = len(working_mem)
+    mem_max = getattr(memory, "max_working_memory", 20)
+    mem_percent = (mem_count / mem_max) * 100 if mem_max > 0 else 0.0
+
     return jsonify({
         "cpu": cpu,
         "ram": ram,
         "gpu": gpu_percent,
         "vram": vram_percent,
+        "gpu_temp": gpu_temp,
+        "vram_used": vram_used,
+        "vram_total": vram_total,
+        "memory_count": mem_count,
+        "memory_max": mem_max,
+        "memory_percent": f"{mem_percent:.1f}",
         "tentacles": tentacles,
         "errors": errors,
         "skills": skills
     })
+
 
 @app.route('/api/toggle_tentacle', methods=['POST'])
 def toggle_tentacle():
@@ -351,6 +420,206 @@ def config_reset():
         
     return jsonify({"success": True})
 
+@app.route('/api/create_tentacle', methods=['POST'])
+def create_tentacle():
+    """사용자 지정 BeautifulSoup 크롤링 문어발 스크립트 동적 생성 API"""
+    data = request.json
+    filename = data.get('filename')
+    url = data.get('url')
+    selector = data.get('selector')
+    keyword = data.get('keyword', '')
+    alert_threshold = data.get('alert_threshold', 'changed') # 'contains' or 'changed'
+    interval_minutes = int(data.get('interval_minutes', 60))
+    
+    if not filename or not url or not selector:
+        return jsonify({"success": False, "error": "파일명, 대상 URL, HTML CSS Selector는 필수 항목입니다."})
+        
+    filename = filename.replace(".py", "").strip()
+    if not filename or '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({"success": False, "error": "부적절한 파일명입니다."})
+        
+    filename_py = f"{filename}_tentacle.py"
+    tentacles_dir = os.path.join(BASE_DIR, "tentacles")
+    file_path = os.path.join(tentacles_dir, filename_py)
+    
+    if os.path.exists(file_path):
+        return jsonify({"success": False, "error": "이미 동일한 이름의 문어발이 존재합니다."})
+        
+    # [오리지널 코드 보존 기법] 신규 템플릿 파일 생성 로직
+    template_code = f'''# -*- coding: utf-8 -*-
+"""
+Generated by Minos Tentacle Factory
+Target: {url}
+"""
+import os
+import sys
+import io
+import json
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
+
+# 콘솔 출력 CP949 방어 및 UTF-8 강제 래핑
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+SIGNAL_FILE = os.path.join(BASE_DIR, "logs", "tentacle_signals.json")
+DATA_FILE = os.path.join(DATA_DIR, "{filename}_cache.json")
+INTERVAL_MINUTES = {interval_minutes}
+
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(SIGNAL_FILE), exist_ok=True)
+
+# 쿨다운 체크
+if os.path.exists(DATA_FILE):
+    try:
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            cache = json.load(f)
+        last_str = cache.get("updated", "")
+        if last_str:
+            last_dt = datetime.strptime(last_str, "%Y-%m-%d %H:%M")
+            if datetime.now() - last_dt < timedelta(minutes=INTERVAL_MINUTES):
+                print(f"[INFO] 쿨다운 대기 중... 다음 주기에 실행됩니다.")
+                sys.exit(0)
+    except Exception:
+        pass
+
+def check_site():
+    try:
+        headers = {{"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}}
+        res = requests.get("{url}", headers=headers, timeout=15)
+        res.raise_for_status()
+        
+        # 인코딩 자동 디코딩
+        res.encoding = res.apparent_encoding
+        
+        soup = BeautifulSoup(res.text, 'html.parser')
+        elements = soup.select("{selector}")
+        if not elements:
+            print("[INFO] HTML 요소를 찾지 못했습니다. Selector 설정을 확인해 보세요.")
+            return None
+            
+        content_text = " ".join([el.get_text().strip() for el in elements if el.get_text().strip()])
+        return content_text
+    except Exception as e:
+        print(f"[ERROR] 크롤링 실패: {{e}}")
+        return None
+
+content = check_site()
+if content is None or not content.strip():
+    sys.exit(0)
+
+keyword_val = "{keyword}"
+alert_type = "{alert_threshold}"
+
+is_alert = False
+msg_suffix = ""
+
+# 캐시에서 이전 데이터 조회
+prev_content = ""
+if os.path.exists(DATA_FILE):
+    try:
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            cache = json.load(f)
+            prev_content = cache.get("content", "")
+    except Exception:
+        pass
+
+if alert_type == "contains":
+    if keyword_val and keyword_val in content:
+        is_alert = True
+        msg_suffix = f"🎯 지정 키워드 '{{keyword_val}}' 발견!"
+elif alert_type == "changed":
+    if content.strip() != prev_content.strip():
+        is_alert = True
+        msg_suffix = f"🔄 콘텐츠 데이터 변동 감지!"
+else:
+    if content.strip() != prev_content.strip():
+        is_alert = True
+        msg_suffix = f"📈 신규 데이터 업데이트 완료!"
+
+if is_alert:
+    now = datetime.now()
+    summary = content[:300] + "..." if len(content) > 300 else content
+    message = (
+        f"🐙 **[자율 문어발 모니터링 알림]**\\n"
+        f"🏷️ 문어발: {filename_py}\\n"
+        f"🔗 대상: {url}\\n"
+        f"📢 상태: {{msg_suffix}}\\n\\n"
+        f"📝 실시간 요약 내용:\\n{{summary}}\\n\\n"
+        f"📅 수집 일시: {{now.strftime('%Y-%m-%d %H:%M')}}"
+    )
+    
+    # 텔레그램 알림용 신호 데이터 기록 (원자적 교체)
+    try:
+        signals = {{}}
+        if os.path.exists(SIGNAL_FILE):
+            try:
+                with open(SIGNAL_FILE, 'r', encoding='utf-8') as f:
+                    signals = json.load(f)
+            except:
+                pass
+        signals["{filename_py}"] = {{
+            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "message": message
+        }}
+        tmp = SIGNAL_FILE + ".tmp"
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(signals, f, indent=4, ensure_ascii=False)
+        os.replace(tmp, SIGNAL_FILE)
+        print(f"[SUCCESS] {filename_py} 신호 발행 성공")
+    except Exception as e:
+        print(f"[ERROR] 신호 파일 쓰기 실패: {{e}}")
+
+# 현재 콘텐츠 캐싱 갱신
+try:
+    cache_data = {{
+        "content": content,
+        "updated": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }}
+    tmp = DATA_FILE + ".tmp"
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(cache_data, f, ensure_ascii=False)
+    os.replace(tmp, DATA_FILE)
+except Exception as e:
+    print(f"[ERROR] 캐싱 갱신 실패: {{e}}")
+
+sys.exit(0)
+'''
+
+    try:
+        os.makedirs(tentacles_dir, exist_ok=True)
+        # 파일 저장 (원자적 쓰기)
+        tmp_file = file_path + ".tmp"
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            f.write(template_code)
+        os.replace(tmp_file, file_path)
+        
+        # tentacle_config.json에 활성화(True) 등록
+        config_file = os.path.join(tentacles_dir, "data", "tentacle_config.json")
+        config = {}
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            except: pass
+        config[filename_py] = True
+        
+        os.makedirs(os.path.dirname(config_file), exist_ok=True)
+        tmp_config = config_file + ".tmp"
+        with open(tmp_config, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+        os.replace(tmp_config, config_file)
+        
+        return jsonify({"success": True, "filename": filename_py})
+    except Exception as e:
+        if os.path.exists(file_path + ".tmp"): os.remove(file_path + ".tmp")
+        return jsonify({"success": False, "error": f"문어발 코드 생성 중 오류 발생: {str(e)}"})
+
 @app.route('/api/config_list')
 def get_config_list():
     target_dir = os.path.join(BASE_DIR, "tentacles", "data")
@@ -408,6 +677,26 @@ def chat():
     chat_id = get_main_chat_id()
     data = request.json
     user_message = data.get('message', '')
+    
+    if user_message.strip().lower() in ["/voice off", "/voice on"]:
+        action = user_message.strip().lower().split()[1]
+        config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
+        config = {}
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r', encoding='utf-8-sig') as f:
+                    config = json.load(f)
+            except: pass
+            
+        config["tts_enabled"] = (action == "on")
+        os.makedirs(os.path.dirname(config_file), exist_ok=True)
+        with open(config_file, 'w', encoding='utf-8-sig') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+            
+        msg = "🔊 자동 음성 출력이 활성화되었습니다." if action == "on" else "🔇 자동 음성 출력이 중지되었습니다."
+        def quick_reply():
+            yield f"data: {json.dumps({'status': 'chunk', 'content': msg})}\n\n"
+        return Response(quick_reply(), mimetype='text/event-stream')
     
     memory.add_message(chat_id=chat_id, role="user", content=user_message)
     sync_to_telegram(chat_id, f"💻 **[대시보드 입력]**:\n{user_message}")

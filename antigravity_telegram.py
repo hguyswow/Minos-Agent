@@ -44,6 +44,7 @@ def get_bot_config():
 
 bot_config = get_bot_config()
 TELEGRAM_TOKEN = bot_config.get("telegram_token", "")
+MASTER_CHAT_ID = bot_config.get("master_chat_id", "5339243832")
 
 def load_llm_config():
     config_path = os.path.join(BASE_DIR, "llm_config.json")
@@ -150,13 +151,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🤖 **알쫑이 봇 명령어 안내**\n\n"
         "/help - 이 도움말을 표시합니다.\n"
         "/status - 봇의 현재 뇌(기억) 상태를 확인합니다.\n"
+        "/dashboard [on/off] - 백그라운드 웹 대시보드 서버를 켜거나 끄고 상태를 점검합니다. (마스터 전용)\n"
         "/backup - 현재까지의 모든 기억을 하드디스크 백업 폴더로 복사합니다.\n"
         "/clear - 단기 기억(문맥)을 포맷하여 새로운 대화를 시작합니다.\n"
         "/auto - 봇의 PC 명령어 전역 자동 실행 모드를 켜거나 끕니다. (위험/전체허용)\n"
         "/model - 봇의 두뇌 엔진(모델)을 텔레그램 상에서 즉시 교체합니다.\n"
-        "/skills - [NEW] 개별 스킬별로 자동(Auto)/수동(Manual) 권한을 제어할 수 있는 버튼 대시보드를 엽니다.\n"
-        "/tentacles - [NEW] 외부 정보 수집용 문어발(Tentacle) 모듈 관리 대시보드를 엽니다.\n"
-        "/memorymode - 기억 검색 엔진(키워드/임베딩)을 변경합니다."
+        "/skills - 개별 스킬별로 자동(Auto)/수동(Manual) 권한을 제어할 수 있는 버튼 대시보드를 엽니다.\n"
+        "/tentacles - 외부 정보 수집용 문어발(Tentacle) 모듈 관리 대시보드를 엽니다.\n"
+        "/memorymode - 기억 검색 엔진(키워드/임베딩)을 변경합니다.\n"
+        "/voice [on/off] - 자동 음성 출력(TTS) 기능을 즉시 켜거나 끕니다.\n"
+        "/rate [ID] [평가] - 알쫑이가 제안한 기능/스킬(ID)을 평가(good/bad/done)하고 점수를 부여합니다."
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -257,6 +261,39 @@ async def memorymode_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = "🔄 **기억 검색 엔진 변경**\n\n현재 엔진: **[옵션 B] 임베딩(Vector DB) 모드**\n(의미론적 유사도를 기반으로 강력하게 과거 대화를 검색합니다.)"
         
     await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args if context.args else []
+    config_file = os.path.join(BASE_DIR, "state", "bot_config.json")
+    config = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8-sig') as f:
+                config = json.load(f)
+        except: pass
+    
+    if not args:
+        current_state = "ON" if config.get("tts_enabled", True) else "OFF"
+        await update.message.reply_text(f"현재 음성 출력 상태는 **{current_state}**입니다.\n사용법: `/voice off` 또는 `/voice on`", parse_mode='Markdown')
+        return
+
+    action = args[0].lower()
+    if action == "off":
+        config["tts_enabled"] = False
+        msg = "🔇 자동 음성 출력이 중지되었습니다."
+    elif action == "on":
+        config["tts_enabled"] = True
+        msg = "🔊 자동 음성 출력이 활성화되었습니다."
+    else:
+        msg = "올바른 옵션을 입력하세요: `/voice off` 또는 `/voice on`"
+        await update.message.reply_text(msg, parse_mode='Markdown')
+        return
+
+    os.makedirs(os.path.dirname(config_file), exist_ok=True)
+    with open(config_file, 'w', encoding='utf-8-sig') as f:
+        json.dump(config, f, indent=4, ensure_ascii=False)
+        
+    await update.message.reply_text(msg)
 
 async def skills_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
@@ -393,18 +430,21 @@ async def _handle_post_response(bot, chat_id: str, reply_text: str, status_messa
     # 2. TTS 처리
     config = get_bot_config()
     tts_dest = config.get("tts_destination", "local")
-    if tts_dest in ["local", "both"]:
-        tts.speak(reply_text)
-    if tts_dest in ["telegram", "both"]:
-        try:
-            from tts_engine import generate_tts_file
-            audio_path = generate_tts_file(reply_text, config)
-            if audio_path and os.path.exists(audio_path):
-                with open(audio_path, 'rb') as af:
-                    await bot.send_voice(chat_id=chat_id, voice=af)
-                os.remove(audio_path)
-        except Exception as e:
-            print(f"[Bot] 텔레그램 음성 발송 오류: {e}")
+    tts_enabled = config.get("tts_enabled", False)
+    
+    if tts_enabled:
+        if tts_dest in ["local", "both"]:
+            tts.speak(reply_text)
+        if tts_dest in ["telegram", "both"]:
+            try:
+                from tts_engine import generate_tts_file
+                audio_path = generate_tts_file(reply_text, config)
+                if audio_path and os.path.exists(audio_path):
+                    with open(audio_path, 'rb') as af:
+                        await bot.send_voice(chat_id=chat_id, voice=af)
+                    os.remove(audio_path)
+            except Exception as e:
+                print(f"[Bot] 텔레그램 음성 발송 오류: {e}")
 
     # 3. SAVE_SKILL 태그 처리
     skill_match = re.search(r'<SAVE_SKILL name="(.*?)" desc="(.*?)">(.*?)</SAVE_SKILL>', reply_text, re.IGNORECASE | re.DOTALL)
@@ -660,12 +700,111 @@ async def tentacles_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("🐙 **문어발 스크립트 전원 스위치**\n\n아래 버튼을 눌러 백그라운드 데몬에서 문어발을 켜고 끄세요.", reply_markup=reply_markup, parse_mode='Markdown')
 
+def is_dashboard_running():
+    """시스템 내에서 dashboard_server.py 프로세스가 활성화되어 구동 중인지 탐색"""
+    import psutil
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmd = proc.info.get('cmdline') or []
+            if any("dashboard_server.py" in arg for arg in cmd):
+                return proc.info['pid']
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return None
+
+async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """텔레그램 마스터 계정 전용 대시보드 백그라운드 원격 제어 핸들러"""
+    chat_id = str(update.effective_chat.id)
+    
+    # [마스터 보안 검사]
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        await update.message.reply_text("🔒 **[보안 거부]** 이 명령은 마스터 계정만 제어할 수 있습니다.")
+        return
+        
+    import sys
+    import subprocess
+    import asyncio
+    
+    args = context.args
+    action = args[0].lower() if args else "status"
+    
+    if action == "on":
+        pid = is_dashboard_running()
+        if pid:
+            await update.message.reply_text(
+                f"🚀 **[Minos Dashboard]**\n"
+                f"이미 웹 대시보드가 구동 중입니다! (PID: {pid})\n\n"
+                f"🔗 **로컬 접속 주소:**\n"
+                f"http://localhost:5000"
+            )
+        else:
+            await update.message.reply_text("⏳ **[Minos Dashboard]** 백그라운드로 웹 서버를 부팅하는 중...")
+            try:
+                creationflags = 0
+                if sys.platform == 'win32':
+                    creationflags = subprocess.CREATE_NO_WINDOW
+                
+                script_path = os.path.join(BASE_DIR, "dashboard_server.py")
+                subprocess.Popen([sys.executable, script_path], creationflags=creationflags)
+                
+                # 부팅될 수 있도록 2.5초 대기 후 상태 재점검
+                await asyncio.sleep(2.5)
+                pid = is_dashboard_running()
+                if pid:
+                    await update.message.reply_text(
+                        f"✅ **[Minos Dashboard] 부팅 완수!**\n"
+                        f"• PID: {pid}\n"
+                        f"• 포트: 5000\n\n"
+                        f"🔗 **로컬 웹 접속:**\n"
+                        f"http://localhost:5000"
+                    )
+                else:
+                    await update.message.reply_text(
+                        "⚠️ 대시보드 실행 명령을 발행했으나 프로세스가 감지되지 않았습니다.\n"
+                        "포트 충돌이나 기타 실행 오류가 있을 수 있으니 수동 구동을 권장합니다."
+                    )
+            except Exception as e:
+                await update.message.reply_text(f"❌ 대시보드 구동 실패: {str(e)}")
+                
+    elif action == "off":
+        pid = is_dashboard_running()
+        if not pid:
+            await update.message.reply_text("🔇 현재 활성화된 웹 대시보드 프로세스가 없습니다.")
+        else:
+            try:
+                import psutil
+                proc = psutil.Process(pid)
+                proc.terminate()
+                await asyncio.sleep(1.0)
+                await update.message.reply_text("🛑 **[Minos Dashboard]** 웹 서버 프로세스를 강제 종료(Shutdown) 처리했습니다.")
+            except Exception as e:
+                await update.message.reply_text(f"❌ 대시보드 프로세스 정지 실패: {str(e)}")
+                
+    else:
+        pid = is_dashboard_running()
+        status_text = f"🟢 **구동 중 (Running)**\n• PID: {pid}\n🔗 주소: http://localhost:5000" if pid else "🔴 **정지됨 (Stopped)**"
+        
+        await update.message.reply_text(
+            f"📊 **[Minos Dashboard 관제 상태]**\n\n"
+            f"• 서버 상태: {status_text}\n\n"
+            f"💡 **원격 전원 스위치 제어 방법:**\n"
+            f"• `/dashboard on` : 백그라운드 웹 대시보드 부팅\n"
+            f"• `/dashboard off` : 구동 중인 대시보드 전원 종료\n"
+            f"• `/dashboard` : 현재 구동 상태 실시간 점검"
+        )
+
 async def skill_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """콜백 디스패처: 버튼 타입별로 전용 헬퍼(_cb_*)에 위임합니다."""
     query = update.callback_query
     await query.answer()
     data = query.data
     chat_id = str(query.message.chat.id)
+    
+    # [보안 검사] 외부인 시스템 설정 및 승인 조작 일괄 방어
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        await query.answer("보안 경고: 모든 에이전트 설정/승인 조작은 형님(마스터)에게만 제한되어 있습니다! ❌", show_alert=True)
+        return
+
     state = get_user_state(chat_id)
 
     if data.startswith("switch_engine:"):
@@ -748,6 +887,10 @@ async def skill_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 async def yes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        await update.message.reply_text("❌ 이 제어 명령은 형님(마스터)만 사용 가능합니다.")
+        return
+        
     state = get_user_state(chat_id)
     cmd = state['pending_command']
     
@@ -760,6 +903,10 @@ async def yes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def no_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(update.effective_chat.id)
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        await update.message.reply_text("❌ 이 제어 명령은 형님(마스터)만 사용 가능합니다.")
+        return
+        
     state = get_user_state(chat_id)
     
     if not state['pending_command']:
@@ -775,6 +922,15 @@ async def no_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def execute_command_and_continue(cmd: str, update: Update, context: ContextTypes.DEFAULT_TYPE, chat_id: str, application=None):
     """실제 터미널 명령어를 백그라운드 비동기로 실행하고 결과를 봇의 뇌에 주입한 뒤 다시 스트리밍을 호출합니다."""
+    # [보안 검사] 형님(마스터) 외의 사용자는 명령어 실행 즉시 거부
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        bot = context.bot if context else application.bot
+        await bot.send_message(
+            chat_id=chat_id, 
+            text="⚠️ **[보안 경보]** 외부인 비정상 명령어 실행 감지!\n형님(마스터) 외의 사용자는 터미널 명령어를 실행할 권한이 없습니다. ❌"
+        )
+        return
+
     bot = context.bot if context else application.bot
     status_msg = await bot.send_message(chat_id=chat_id, text=f"⚡ 윈도우 터미널 명령어 (비동기) 실행 중...\n`{cmd}`", parse_mode='Markdown')
     
@@ -849,7 +1005,11 @@ async def stream_llm_response(update: Update, context: ContextTypes.DEFAULT_TYPE
         'messages': optimized_messages,
         'temperature': 0.7,
         'max_tokens': MAX_TOKENS,
-        'stream': True
+        'stream': True,
+        'num_ctx': 16384,
+        'options': {
+            'num_ctx': 16384
+        }
     }
     
     reply_text = ""
@@ -1012,9 +1172,8 @@ async def schedule_checker(application):
                     try:
                         s_time = datetime.strptime(s['time'], "%Y-%m-%d %H:%M")
                         if now >= s_time:
-                            chat_ids = list(user_states.keys())
-                            if chat_ids:
-                                chat_id = chat_ids[-1] 
+                            chat_id = MASTER_CHAT_ID if MASTER_CHAT_ID else (list(user_states.keys())[-1] if user_states else None)
+                            if chat_id:
                                 msg = s['message']
                                 await application.bot.send_message(chat_id=chat_id, text=f"🔔 **[스케줄 매니저] 예약 알림**\n{msg}", parse_mode='Markdown')
                                 memory.add_message(chat_id=chat_id, role="user", content=f"[시스템 알람]: 예약된 시간({s['time']})이 되었습니다. 사용자에게 예약된 알림 메시지 내용('{msg}')을 기반으로 적절한 액션(명령어 실행 또는 브리핑)을 즉시 진행하세요.")
@@ -1055,9 +1214,8 @@ async def tentacle_error_checker(application):
                     if reported_errors.get(filename) != err_time:
                         reported_errors[filename] = err_time
                         
-                        chat_ids = list(user_states.keys())
-                        if chat_ids:
-                            chat_id = chat_ids[-1]
+                        chat_id = MASTER_CHAT_ID if MASTER_CHAT_ID else (list(user_states.keys())[-1] if user_states else None)
+                        if chat_id:
                             alert_msg = f"🚨 **[문어발 자가 치유 시스템 발동]**\n\n문어발 스크립트 `{filename}` 에서 에러가 감지되었습니다. 알쫑이가 디버깅을 시작합니다!\n\n에러 내용:\n`{err_log[:500]}...`"
                             await application.bot.send_message(chat_id=chat_id, text=alert_msg, parse_mode='Markdown')
                             
@@ -1135,11 +1293,10 @@ async def tentacle_signal_checker(application):
                 with open(signal_file_path, 'r', encoding='utf-8') as f:
                     signals = json.load(f)
                 
-                chat_ids = list(user_states.keys())
-                if not chat_ids:
+                chat_id = MASTER_CHAT_ID if MASTER_CHAT_ID else (list(user_states.keys())[-1] if user_states else None)
+                if not chat_id:
                     await asyncio.sleep(60)
                     continue
-                chat_id = chat_ids[-1]
 
                 # ── Alert Summarizer: 이번 사이클에서 새로 감지된 신호 수집 ──
                 upgrade_signals = []
@@ -1237,9 +1394,11 @@ def main():
     application.add_handler(CommandHandler('yes', yes_command))
     application.add_handler(CommandHandler('no', no_command))
     application.add_handler(CommandHandler('memorymode', memorymode_command))
+    application.add_handler(CommandHandler('voice', voice_command))
     application.add_handler(CommandHandler('skills', skills_command))
     application.add_handler(CommandHandler('tentacles', tentacles_command))
     application.add_handler(CommandHandler('rate', rate_proposal_command))
+    application.add_handler(CommandHandler('dashboard', dashboard_command))
     application.add_handler(CallbackQueryHandler(skill_callback_handler))
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

@@ -80,10 +80,14 @@ def generate_response_stream(chat_id: str, current_query: str = "", memory_mode:
     """
     dynamic_system_prompt = get_dynamic_prompt(chat_id)
     
+    # 로컬 모델(특히 작은 모델)이 시스템 프롬프트(영혼)를 망각하는 것을 방지하기 위해 사용자 질문 끝에 말투 리마인더 강제 주입
+    persona_reminder = "\n\n(※ 지시사항: 반드시 '형님!'이라고 부르는 명랑하고 깍듯한 꼬마 비서 '알쫑이/Minos'의 말투를 유지해서 대답하세요.)"
+    optimized_query = current_query + persona_reminder if current_query else persona_reminder
+
     optimized_messages = memory.get_optimized_context(
         chat_id=chat_id, 
         base_system_prompt=dynamic_system_prompt,
-        current_query=current_query,
+        current_query=optimized_query,
         memory_mode=memory_mode
     )
     
@@ -92,7 +96,11 @@ def generate_response_stream(chat_id: str, current_query: str = "", memory_mode:
         'messages': optimized_messages,
         'temperature': 0.7,
         'max_tokens': MAX_TOKENS,
-        'stream': True
+        'stream': True,
+        'num_ctx': 16384,
+        'options': {
+            'num_ctx': 16384
+        }
     }
     
     headers = {"Content-Type": "application/json"}

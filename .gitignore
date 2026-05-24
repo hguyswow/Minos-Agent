@@ -24,6 +24,9 @@ user_settings.json
 docs/Manual_*.md.bak
 tentacles/data/
 tentacles/logs/
+skill_system/skills/google_credentials.json
+skill_system/skills/google_token.json
+
 
 # OS generated files
 .DS_Store
@@ -46,3 +49,16 @@ tentacles/logs/
 
 # Morse code / scratch notes
 tentacles/morning_code_clean.txt
+
+# Logs
+*.log
+bridge_err.log
+bridge_out.log
+telegram_bridge.log
+
+# Telegram inbox/outbox queues
+telegram_inbox.json
+telegram_outbox.json
+
+# Reminders & States
+state/reminders.json

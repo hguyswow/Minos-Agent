@@ -46,10 +46,9 @@ def _extract_topics(content: str) -> str:
     return ",".join(found) if found else "일반"
 
 
-
 class MemoryEngine:
     """
-    안티그래비티 초경량 범용 기억력 엔진 (Memory Engine)
+    안티그래비티 초경량 기억력 엔진 (Memory Engine)
     - 3계층 기억 구조 (Working, Semantic, Episodic)
     - 하이브리드 RAG (옵션 A: BM25 키워드, 옵션 B: ChromaDB 임베딩)
     """
@@ -114,33 +113,87 @@ class MemoryEngine:
         with open(log_path, 'a', encoding='utf-8') as f:
             f.write(json.dumps(entry, ensure_ascii=False) + '\n')
 
-        # 2. ChromaDB (임베딩) 기록 (메타데이터에 intent+topics 포함)
+        # [오리지널 코드 보존]
+        # # 2. ChromaDB (임베딩) 기록 (메타데이터에 intent+topics 포함)
+        # if self.chroma_collection:
+        #     try:
+        #         res = requests.post('http://127.0.0.1:11434/api/embeddings', json={
+        #             'model': 'nomic-embed-text',
+        #             'prompt': content
+        #         }, timeout=5)
+        # 
+        #         if res.status_code == 200:
+        #             embedding = res.json().get('embedding')
+        #             if embedding:
+        #                 doc_id = f"{chat_id}_{timestamp}"
+        #                 self.chroma_collection.add(
+        #                     embeddings=[embedding],
+        #                     documents=[content],
+        #                     metadatas=[{
+        #                         "role": role,
+        #                         "chat_id": chat_id,
+        #                         "timestamp": timestamp,
+        #                         "intent": intent,
+        #                         "topics": topics
+        #                     }],
+        #                     ids=[doc_id]
+        #                 )
+        #     except Exception as e:
+        #         print(f"[MemoryEngine] ChromaDB 임베딩 저장 실패 (무시): {e}")
+
+        # [수정 코드] ChromaDB 비동기 저장 및 동적 임베딩 설정 적용 (UI 블로킹 예방)
         if self.chroma_collection:
-            try:
-                res = requests.post('http://127.0.0.1:11434/api/embeddings', json={
-                    'model': 'nomic-embed-text',
-                    'prompt': content
-                }, timeout=5)
+            import threading
+            
+            def save_embedding_task():
+                try:
+                    embed_url = "http://127.0.0.1:11434/api/embeddings"
+                    embed_model = "nomic-embed-text"
+                    
+                    # llm_config.json에서 활성 LLM 엔진 호스트 정보 동적 파싱
+                    try:
+                        config_path = os.path.join(self.memory_dir, "..", "llm_config.json")
+                        if os.path.exists(config_path):
+                            with open(config_path, "r", encoding="utf-8") as f:
+                                llm_cfg = json.load(f)
+                                active = llm_cfg.get("active_engine", "ollama")
+                                engine = llm_cfg.get("engines", {}).get(active, {})
+                                host_url = engine.get("url", "http://127.0.0.1:11434/v1/chat/completions")
+                                # http://host:port/v1/... 형태인 경우 http://host:port/api/embeddings 형태로 변환
+                                if "/v1/" in host_url:
+                                    embed_url = host_url.split("/v1/")[0] + "/api/embeddings"
+                                else:
+                                    # 혹시 주소가 일반 호스트 주소라면 뒤에 붙임
+                                    if not host_url.endswith("/api/embeddings") and not host_url.endswith("/chat/completions"):
+                                        embed_url = host_url.rstrip("/") + "/api/embeddings"
+                    except Exception as cfg_err:
+                        print(f"[MemoryEngine] Embed config 로드 실패, 폴백 기본값 사용: {cfg_err}")
 
-                if res.status_code == 200:
-                    embedding = res.json().get('embedding')
-                    if embedding:
-                        doc_id = f"{chat_id}_{timestamp}"
-                        self.chroma_collection.add(
-                            embeddings=[embedding],
-                            documents=[content],
-                            metadatas=[{
-                                "role": role,
-                                "chat_id": chat_id,
-                                "timestamp": timestamp,
-                                "intent": intent,
-                                "topics": topics
-                            }],
-                            ids=[doc_id]
-                        )
-            except Exception as e:
-                print(f"[MemoryEngine] ChromaDB 임베딩 저장 실패 (무시): {e}")
+                    res = requests.post(embed_url, json={
+                        'model': embed_model,
+                        'prompt': content
+                    }, timeout=10)
 
+                    if res.status_code == 200:
+                        embedding = res.json().get('embedding')
+                        if embedding:
+                            doc_id = f"{chat_id}_{timestamp}"
+                            self.chroma_collection.add(
+                                embeddings=[embedding],
+                                documents=[content],
+                                metadatas=[{
+                                    "role": role,
+                                    "chat_id": chat_id,
+                                    "timestamp": timestamp,
+                                    "intent": intent,
+                                    "topics": topics
+                                }],
+                                ids=[doc_id]
+                            )
+                except Exception as embed_err:
+                    print(f"[MemoryEngine] ChromaDB 비동기 임베딩 저장 실패 (무시): {embed_err}")
+            
+            threading.Thread(target=save_embedding_task, daemon=True).start()
 
     def add_message(self, chat_id: str, role: str, content: str):
         self.log_episodic(chat_id, role, content)
@@ -160,31 +213,109 @@ class MemoryEngine:
             
         self.save_memory(chat_id, mem)
 
+    # [오리지널 코드 보존]
+    # def _condense_memory_thread(self, chat_id: str, old_messages: list, current_semantic: str):
+    #     import threading
+    #     import requests
+    #     
+    #     def task():
+    #         try:
+    #             text_to_condense = "\n".join([f"{m['role']}: {m['content']}" for m in old_messages])
+    #             prompt = f"다음 과거 대화를 3줄 이내로 핵심만 요약해라. 사용자의 성향이나 중요한 팩트, 맥락 위주로 압축해라:\n\n{text_to_condense}"
+    #             
+    #             # 로컬 Ollama 엔드포인트 호출 (기본 모델 사용)
+    #             res = requests.post('http://127.0.0.1:11434/api/generate', json={
+    #                 'model': 'gemma4-e4b:q4km', 
+    #                 'prompt': prompt,
+    #                 'stream': False
+    #             }, timeout=30)
+    #             
+    #             if res.status_code == 200:
+    #                 summary = res.json().get('response', '').strip()
+    #                 if summary:
+    #                     new_semantic = current_semantic.strip() + f"\n- [과거 압축 요약]: {summary}"
+    #                     # 무한 증식 방지 (장기 기억 최대 3000자 유지)
+    #                     if len(new_semantic) > 3000:
+    #                         new_semantic = "..." + new_semantic[-2900:]
+    #                     self.update_semantic_memory(chat_id, new_semantic)
+    #                     print(f"[MemoryEngine] Memory Condenser: 과거 기억 압축 및 장기 기억 이관 완료.")
+    #         except Exception as e:
+    #             print(f"[MemoryEngine] Memory Condenser 오류 (압축 실패): {e}")
+    #             
+    #     threading.Thread(target=task, daemon=True).start()
+
     def _condense_memory_thread(self, chat_id: str, old_messages: list, current_semantic: str):
         import threading
         import requests
+        import json
         
         def task():
             try:
-                text_to_condense = "\n".join([f"{m['role']}: {m['content']}" for m in old_messages])
-                prompt = f"다음 과거 대화를 3줄 이내로 핵심만 요약해라. 사용자의 성향이나 중요한 팩트, 맥락 위주로 압축해라:\n\n{text_to_condense}"
+                # 1. llm_config.json에서 활성화된 LLM 설정 동적 로드
+                condense_url = "http://127.0.0.1:11434/v1/chat/completions"
+                condense_model = "gemma4-e4b:q4km"
+                api_key = ""
                 
-                # 로컬 Ollama 엔드포인트 호출 (기본 모델 사용)
-                res = requests.post('http://127.0.0.1:11434/api/generate', json={
-                    'model': 'gemma4-e4b:q4km', 
-                    'prompt': prompt,
-                    'stream': False
-                }, timeout=30)
+                try:
+                    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm_config.json")
+                    if os.path.exists(config_path):
+                        with open(config_path, "r", encoding="utf-8") as f:
+                            llm_cfg = json.load(f)
+                            active = llm_cfg.get("active_engine", "ollama")
+                            engine = llm_cfg.get("engines", {}).get(active, {})
+                            condense_url = engine.get("url", condense_url)
+                            condense_model = engine.get("model", condense_model)
+                            api_key = engine.get("api_key", api_key)
+                except Exception as cfg_err:
+                    print(f"[MemoryEngine] llm_config 로드 실패, 폴백 기본값 사용: {cfg_err}")
+                
+                text_to_condense = "\n".join([f"{m['role']}: {m['content']}" for m in old_messages])
+                
+                # 2. 범용 Chat Completions 표준 규격으로 페이로드 설계
+                payload = {
+                    "model": condense_model,
+                    "messages": [
+                        {
+                            "role": "system", 
+                            "content": "당신은 과거 대화를 3줄 이내로 핵심만 요약하는 요약 도우미입니다. 사용자의 성향이나 중요한 팩트, 맥락 위주로 압축하세요. 별도의 서론이나 추가 메시지 없이 핵심 요약문만 3줄 이내의 글머리기호(-) 형태로 대답하세요."
+                        },
+                        {
+                            "role": "user", 
+                            "content": text_to_condense
+                        }
+                    ],
+                    "temperature": 0.3,
+                    "max_tokens": 500,
+                    "stream": False
+                }
+                
+                headers = {"Content-Type": "application/json"}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                
+                # 3. 요청 발송 및 응답 추출
+                res = requests.post(condense_url, json=payload, headers=headers, timeout=45)
                 
                 if res.status_code == 200:
-                    summary = res.json().get('response', '').strip()
+                    res_data = res.json()
+                    summary = ""
+                    
+                    # Chat Completions 표준 포맷 파싱
+                    if "choices" in res_data and len(res_data["choices"]) > 0:
+                        summary = res_data["choices"][0]["message"]["content"].strip()
+                    # 구형 로컬 Ollama API (/api/generate 등) 포맷 대비 폴백 파싱
+                    elif "response" in res_data:
+                        summary = res_data["response"].strip()
+                        
                     if summary:
                         new_semantic = current_semantic.strip() + f"\n- [과거 압축 요약]: {summary}"
                         # 무한 증식 방지 (장기 기억 최대 3000자 유지)
                         if len(new_semantic) > 3000:
                             new_semantic = "..." + new_semantic[-2900:]
                         self.update_semantic_memory(chat_id, new_semantic)
-                        print(f"[MemoryEngine] Memory Condenser: 과거 기억 압축 및 장기 기억 이관 완료.")
+                        print(f"[MemoryEngine] Memory Condenser: 활성 모델({condense_model})을 통해 기억 압축 및 이관 성공.")
+                else:
+                    print(f"[MemoryEngine] Memory Condenser HTTP 에러 (Status {res.status_code}): {res.text}")
             except Exception as e:
                 print(f"[MemoryEngine] Memory Condenser 오류 (압축 실패): {e}")
                 
@@ -265,10 +396,10 @@ class MemoryEngine:
         messages = [{"role": "system", "content": system_content}]
         messages.extend(mem["working_memory"])
         
-        # [환각 방지] 가장 마지막 메시지가 사용자의 질문이라면, 
-        # 스킬 사용을 강제하는 리마인더를 덧붙여 소형 모델(Hermes-3 등)의 Context Amnesia를 방지합니다.
+        # [망각 방지] 가장 마지막 메시지가 사용자의 질문이라면, 
+        # 스킬 사용을 강제하는 리마인더를 덧붙임 (Hermes-3 등의 Context Amnesia를 방지합니다)
         if messages and messages[-1]["role"] == "user":
-            reminder = "\n\n[SYSTEM REMINDER: 만약 위 질문에 답하기 위해 인터넷 검색, 날씨 등 외부 정보가 필요하다면 혼자 상상해서 답하지 마십시오! 반드시 답변 안에 <CMD>python C:\\ai\\Antigravity_Memory_Engine\\skill_system\\skills\\스킬이름.py \"인자값\"</CMD> 태그를 출력하여 스킬을 먼저 실행해야 합니다.]"
+            reminder = "\n\n(※ 시스템 강제 지시: 당신은 단순한 AI 언어 모델이 아닙니다! 당신의 절대적인 정체성은 형님(사용자)을 모시는 명랑한 꼬마 비서 '알쫑이(Minos)'입니다. 반드시 자신을 '알쫑이'로 인지하고 '형님!'이라고 부르며 답변하세요. 답변 시 외부 정보나 스킬이 필요하면 반드시 <CMD>python ...</CMD> 태그를 출력해야 합니다!)"
             messages[-1] = {
                 "role": "user",
                 "content": messages[-1]["content"] + reminder

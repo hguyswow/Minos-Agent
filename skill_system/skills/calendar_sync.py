@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 # AGENT_SKILL_NAME: calendar_sync
 # AGENT_SKILL_DESC: 구글 캘린더에서 오늘 또는 이번 주 일정을 조회합니다. 최초 실행 시 브라우저 인증 필요.
-# AGENT_SKILL_ARGS: range(str) - today/week
+# AGENT_SKILL_ARGS: range(str) - today/week/month/next_month
 # AGENT_SKILL_RETURNS: 일정 목록 (제목, 시간, 장소)
 #
-# calendar_sync: 구글 캘린더(Google Calendar) API를 통해 오늘/이번 주 일정을 조회합니다.
+# calendar_sync: 구글 캘린더(Google Calendar) API를 통해 오늘/이번 주/이번 달/다음 달 일정을 조회합니다.
 # 최초 실행 시 브라우저 인증이 필요합니다. credentials.json 파일이 필요합니다.
 # 사용 예: <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\calendar_sync.py today</CMD>
-# <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\calendar_sync.py week</CMD>
+# <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\calendar_sync.py next_month</CMD>
 # <CMD>python C:\ai\Antigravity_Memory_Engine\skill_system\skills\calendar_sync.py setup</CMD>
 #
 import sys
@@ -28,13 +28,32 @@ TOKEN_FILE = os.path.join(BASE_DIR, "google_token.json")
 
 SETUP_GUIDE = """
 [Google Calendar 연동 설정 가이드]
+(최종 업데이트: 2026-05-05)
 
-1. https://console.cloud.google.com/ 에 접속
-2. 프로젝트 생성 → API 및 서비스 → Google Calendar API 활성화
-3. 사용자 인증 정보 → OAuth 2.0 클라이언트 ID 생성 (데스크톱 앱)
-4. 다운로드한 JSON 파일을 아래 경로에 저장:
-   {}
-5. 다시 이 스킬을 실행하면 브라우저 인증 창이 뜹니다.
+⚠️ 주의: 구글 클라우드 콘솔의 UI와 정책은 구글의 행보에 따라 언제든 예고 없이 변경될 수 있습니다.
+
+1. API 활성화
+   - https://console.cloud.google.com/apis/library/calendar-json.googleapis.com 에 접속
+   - 프로젝트가 없다면 생성 후, [사용(Enable)] 버튼을 클릭하여 Calendar API 활성화
+
+2. OAuth 동의 화면 구성 (필수)
+   - 왼쪽 메뉴에서 [OAuth 동의 화면] 이동
+   - User Type: [외부(External)] 선택 후 [만들기]
+   - 앱 이름, 사용자 지원 이메일, 개발자 연락처(본인 이메일) 대충 입력 후 맨 아래 [저장하고 계속] (나머지는 계속 넘기기)
+   - 다시 [OAuth 동의 화면]으로 돌아와서 하단의 [테스트 사용자] 섹션에 본인 이메일을 반드시 추가! (추가 안 하면 403 access_denied 에러 발생)
+
+3. 사용자 인증 정보(Client ID) 생성
+   - https://console.cloud.google.com/apis/credentials 에 접속
+   - 상단 [+ 사용자 인증 정보 만들기] → [OAuth 클라이언트 ID] 클릭
+   - 애플리케이션 유형: [데스크톱 앱] 선택 후 만들기
+   - 생성 완료 후 우측의 [JSON 다운로드] 버튼 클릭
+
+4. 파일 적용
+   - 다운로드한 파일 이름을 `google_credentials.json`으로 변경
+   - 아래 경로에 정확히 덮어쓰기:
+     {}
+
+5. 다시 이 스킬을 실행하여 브라우저에서 최종 로그인 권한 허용을 완료하세요.
 """.format(CREDS_FILE)
 
 def get_events(mode: str = "today") -> str:
@@ -51,11 +70,16 @@ def get_events(mode: str = "today") -> str:
         return ("[calendar_sync] 필요한 라이브러리가 없습니다.\n"
                 "pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib 을 실행하세요.")
 
-    SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
     creds = None
 
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        if creds and not creds.has_scopes(SCOPES):
+            creds = None
+            try:
+                os.remove(TOKEN_FILE)
+            except: pass
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -74,6 +98,19 @@ def get_events(mode: str = "today") -> str:
             time_min = now_utc.isoformat()
             time_max = (now_utc + timedelta(days=7)).isoformat()
             period_label = "이번 주 (7일간)"
+        elif mode == "month":
+            time_min = now_utc.isoformat()
+            time_max = (now_utc + timedelta(days=30)).isoformat()
+            period_label = "이번 달 (30일간)"
+        elif mode == "next_month":
+            import calendar
+            next_month_date = now_utc.replace(day=28) + timedelta(days=4)
+            start_of_next_month = next_month_date.replace(day=1, hour=0, minute=0, second=0)
+            _, last_day = calendar.monthrange(start_of_next_month.year, start_of_next_month.month)
+            end_of_next_month = start_of_next_month.replace(day=last_day, hour=23, minute=59, second=59)
+            time_min = start_of_next_month.isoformat()
+            time_max = end_of_next_month.isoformat()
+            period_label = "다음 달"
         else:  # today
             time_min = now_utc.replace(hour=0, minute=0, second=0).isoformat()
             time_max = now_utc.replace(hour=23, minute=59, second=59).isoformat()
@@ -83,7 +120,7 @@ def get_events(mode: str = "today") -> str:
             calendarId='primary',
             timeMin=time_min,
             timeMax=time_max,
-            maxResults=20,
+            maxResults=50,
             singleEvents=True,
             orderBy='startTime'
         ).execute()
@@ -117,7 +154,7 @@ if __name__ == "__main__":
 
     if mode == "setup":
         print(SETUP_GUIDE)
-    elif mode in ["today", "week"]:
+    elif mode in ["today", "week", "month", "next_month"]:
         print(get_events(mode))
     else:
-        print("사용법: python calendar_sync.py [today|week|setup]")
+        print("사용법: python calendar_sync.py [today|week|month|next_month|setup]")
