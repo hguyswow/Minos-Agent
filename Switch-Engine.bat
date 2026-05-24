@@ -5,12 +5,17 @@ color 0E
 
 cd /d "%~dp0"
 
+set PYTHON_CMD=python
+if exist venv\Scripts\python.exe (
+    set PYTHON_CMD=venv\Scripts\python.exe
+)
+
 echo ========================================================
 echo     Minos Memory Engine - LLM Backend Switcher
 echo ========================================================
 echo.
 echo 현재 설정된 엔진 상태:
-python -c "import json; print(' - Active Engine:', json.load(open('llm_config.json'))['active_engine'])" 2>nul
+%PYTHON_CMD% -c "import json; print(' - Active Engine:', json.load(open('llm_config.json'))['active_engine'])" 2>nul
 echo.
 echo [1] Ollama (Gemma 4 E4B) - 안정성, 표준 서버
 echo [2] TurboQuant (Hermes 3) - VRAM 4~6x 절감, 초고속 추론
@@ -22,7 +27,7 @@ set /p choice="사용할 엔진 번호를 선택하세요: "
 if "%choice%"=="1" (
     echo.
     echo Ollama 모드로 변경합니다...
-    python -c "import json; data=json.load(open('llm_config.json')); data['active_engine']='ollama'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
+    %PYTHON_CMD% -c "import json; data=json.load(open('llm_config.json')); data['active_engine']='ollama'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
     echo.
     echo 설정을 변경했습니다. 시스템을 재시작합니다!
     timeout /t 2 > nul
@@ -31,7 +36,7 @@ if "%choice%"=="1" (
 ) else if "%choice%"=="2" (
     echo.
     echo TurboQuant 모드로 변경합니다...
-    python -c "import json; data=json.load(open('llm_config.json')); data['active_engine']='turboquant'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
+    %PYTHON_CMD% -c "import json; data=json.load(open('llm_config.json')); data['active_engine']='turboquant'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
     echo.
     echo 설정을 변경했습니다. 시스템을 재시작합니다!
     timeout /t 2 > nul
@@ -70,7 +75,7 @@ if "%sub%"=="6" set "MODEL_NAME=mimo-v2-omni"
 if "%sub%"=="7" set "MODEL_NAME=minimax-m2.7"
 if "%sub%"=="8" set /p MODEL_NAME="정확한 모델명 입력: "
 
-python -c "import json, sys; data=json.load(open('llm_config.json', encoding='utf-8')); data['active_engine']='api'; data['engines']['api']['model']='%MODEL_NAME%'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
+%PYTHON_CMD% -c "import json, sys; data=json.load(open('llm_config.json', encoding='utf-8')); data['active_engine']='api'; data['engines']['api']['model']='%MODEL_NAME%'; json.dump(data, open('llm_config.json', 'w', encoding='utf-8'), indent=4)"
 echo.
 echo 설정을 변경했습니다. (선택된 모델: %MODEL_NAME%)
 echo 시스템을 재시작합니다!

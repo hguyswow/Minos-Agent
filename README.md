@@ -9,6 +9,9 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Ollama Powered](https://img.shields.io/badge/AI-Ollama-black?logo=ollama)](https://ollama.com)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078d7?logo=windows)](https://microsoft.com)
+<br>
+[![Github Stars](https://img.shields.io/github/stars/hguyswow/Minos-Agent?style=social)](https://github.com/hguyswow/Minos-Agent/stargazers)
+[![Github Forks](https://img.shields.io/github/forks/hguyswow/Minos-Agent?style=social)](https://github.com/hguyswow/Minos-Agent/network/members)
 
 [**한국어(Korean)**](#-주요-기능) | [**English**](#-key-features)
 

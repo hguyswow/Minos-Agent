@@ -6,6 +6,11 @@ color 0B
 set SILENT_MODE=false
 if "%~1"=="--silent" set SILENT_MODE=true
 
+set PYTHON_CMD=python
+if exist venv\Scripts\python.exe (
+    set PYTHON_CMD=venv\Scripts\python.exe
+)
+
 echo.
 echo  =====================================================
 echo    MINOS - Minos Memory Engine v2.0
@@ -49,7 +54,7 @@ REM  STEP 2: Check AI Engine
 REM =====================================================
 echo  [2/5] Checking AI Engine...
 
-python -c "import json,sys; d=json.load(open('llm_config.json')); print(d.get('active_engine','ollama'))" >temp_engine.txt 2>nul
+%PYTHON_CMD% -c "import json,sys; d=json.load(open('llm_config.json')); print(d.get('active_engine','ollama'))" >temp_engine.txt 2>nul
 set /p ACTIVE_ENGINE=<temp_engine.txt
 del temp_engine.txt >nul 2>&1
 
@@ -73,7 +78,7 @@ REM  STEP 3: Get Telegram Bot Info
 REM =====================================================
 echo  [3/5] Checking Telegram Bot info...
 
-python -c "import json,sys,requests; cfg=json.load(open('state/bot_config.json',encoding='utf-8-sig')); token=cfg.get('telegram_token',''); r=requests.get(f'https://api.telegram.org/bot{token}/getMe',timeout=5).json(); print(r['result']['username'] if r.get('ok') else 'UNKNOWN')" >temp_botname.txt 2>nul
+%PYTHON_CMD% -c "import json,sys,requests; cfg=json.load(open('state/bot_config.json',encoding='utf-8-sig')); token=cfg.get('telegram_token',''); r=requests.get(f'https://api.telegram.org/bot{token}/getMe',timeout=5).json(); print(r['result']['username'] if r.get('ok') else 'UNKNOWN')" >temp_botname.txt 2>nul
 set /p BOT_NAME=<temp_botname.txt
 del temp_botname.txt >nul 2>&1
 
@@ -88,10 +93,10 @@ REM  STEP 4: Check Python Packages
 REM =====================================================
 echo  [4/5] Checking required packages...
 
-python -c "import flask,psutil,telegram,requests; print('OK')" >nul 2>&1
+%PYTHON_CMD% -c "import flask,psutil,telegram,requests; print('OK')" >nul 2>&1
 if errorlevel 1 (
     echo  [4/5] Installing missing packages...
-    pip install -q flask psutil requests python-telegram-bot pyttsx3
+    %PYTHON_CMD% -m pip install -q flask psutil requests python-telegram-bot pyttsx3
 ) else (
     echo  [4/5] All packages OK.
 )
@@ -102,13 +107,13 @@ REM =====================================================
 echo  [5/5] Launching Minos modules...
 
 echo  Starting Web Dashboard...
-start /min "Minos Dashboard - http://localhost:5000" cmd /k "title Minos Dashboard - http://localhost:5000 & color 0A & set PYTHONIOENCODING=utf-8 & python dashboard_server.py"
+start /min "Minos Dashboard - http://localhost:5000" cmd /k "title Minos Dashboard - http://localhost:5000 & color 0A & set PYTHONIOENCODING=utf-8 & %PYTHON_CMD% dashboard_server.py"
 
 echo  Waiting for Dashboard to initialize (3s)...
 timeout /t 3 /nobreak >nul
 
 echo  Starting Telegram Bot and Core Engine...
-start /min "Minos Telegram Bot" cmd /k "title Minos Telegram Bot & color 0E & set PYTHONIOENCODING=utf-8 & python antigravity_telegram.py"
+start /min "Minos Telegram Bot" cmd /k "title Minos Telegram Bot & color 0E & set PYTHONIOENCODING=utf-8 & %PYTHON_CMD% antigravity_telegram.py"
 
 timeout /t 2 /nobreak >nul
 

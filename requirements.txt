@@ -1,0 +1,16 @@
+flask
+psutil
+requests
+gputil
+pyttsx3
+chromadb
+rank_bm25
+SpeechRecognition
+faster-whisper
+pydub
+imageio-ffmpeg
+duckduckgo-search
+playwright
+beautifulsoup4
+lxml
+edge-tts
