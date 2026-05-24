@@ -1,8 +1,8 @@
 @echo off
-title Antigravity Web Dashboard Server
+title Minos Web Dashboard Server
 color 0B
 echo ========================================================
-echo       Antigravity Web Dashboard Server Startup
+echo       Minos Web Dashboard Server Startup
 echo ========================================================
 echo.
 echo [1/3] Checking requirements...

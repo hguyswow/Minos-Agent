@@ -1,6 +1,6 @@
-# Antigravity Memory Engine - Architecture & Development Guidelines
+# Minos Memory Engine - Architecture & Development Guidelines
 
-이 문서는 Antigravity Memory Engine(알쫑이 에이전트)의 향후 코딩 및 유지보수를 담당할 **모든 AI 코딩 에이전트를 위한 절대적인 아키텍처 가이드라인**입니다. 코드 수정이나 새로운 기능 추가 시 반드시 아래의 철학과 구조를 준수해야 합니다.
+이 문서는 Minos Memory Engine(알쫑이 에이전트)의 향후 코딩 및 유지보수를 담당할 **모든 AI 코딩 에이전트를 위한 절대적인 아키텍처 가이드라인**입니다. 코드 수정이나 새로운 기능 추가 시 반드시 아래의 철학과 구조를 준수해야 합니다.
 
 ---
 

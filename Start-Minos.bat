@@ -3,9 +3,12 @@ chcp 65001 >nul
 title Minos System Launcher
 color 0B
 
+set SILENT_MODE=false
+if "%~1"=="--silent" set SILENT_MODE=true
+
 echo.
 echo  =====================================================
-echo    MINOS - Antigravity Memory Engine v2.0
+echo    MINOS - Minos Memory Engine v2.0
 echo  =====================================================
 echo.
 
@@ -129,6 +132,14 @@ if not "%BOT_NAME%"=="UNKNOWN" (
 echo.
 echo  =====================================================
 echo.
+
+if "%SILENT_MODE%"=="true" (
+    echo.
+    echo  Minos is running in the background (Silent Mode).
+    timeout /t 2 /nobreak >nul
+    exit
+)
+
 echo  Select an option:
 echo    [1] Open Dashboard in browser
 echo    [2] Open Telegram bot in browser

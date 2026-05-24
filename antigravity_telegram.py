@@ -152,6 +152,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/help - 이 도움말을 표시합니다.\n"
         "/status - 봇의 현재 뇌(기억) 상태를 확인합니다.\n"
         "/dashboard [on/off] - 백그라운드 웹 대시보드 서버를 켜거나 끄고 상태를 점검합니다. (마스터 전용)\n"
+        "/restart - 에이전트 시스템 전체(대시보드 + 봇)를 백그라운드에서 깨끗하게 재부팅합니다. (마스터 전용)\n"
         "/backup - 현재까지의 모든 기억을 하드디스크 백업 폴더로 복사합니다.\n"
         "/clear - 단기 기억(문맥)을 포맷하여 새로운 대화를 시작합니다.\n"
         "/auto - 봇의 PC 명령어 전역 자동 실행 모드를 켜거나 끕니다. (위험/전체허용)\n"
@@ -793,6 +794,41 @@ async def dashboard_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"• `/dashboard` : 현재 구동 상태 실시간 점검"
         )
 
+async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """텔레그램 마스터 계정 전용 에이전트 시스템 전체 클린 재부팅 핸들러"""
+    chat_id = str(update.effective_chat.id)
+    
+    # [마스터 보안 검사]
+    if MASTER_CHAT_ID and chat_id != MASTER_CHAT_ID:
+        await update.message.reply_text("🔒 **[보안 거부]** 이 명령은 마스터 계정만 실행할 수 있습니다.")
+        return
+        
+    await update.message.reply_text(
+        "⏳ **[Minos System Reboot]**\n"
+        "형님, 시스템 클린 재부팅 명령을 감지했습니다.\n"
+        "즉시 모든 좀비 프로세스를 소거하고 백그라운드 부팅 시퀀스(Start-Minos.bat)를 재기동합니다.\n\n"
+        "약 5~10초 후 재연동 완료 시 알쫑이가 다시 활성화됩니다. 잠시만 기다려 주십시오!"
+    )
+    
+    # 텔레그램 서버로 위 메시지가 안정적으로 송출될 수 있도록 1.5초간 대기합니다.
+    await asyncio.sleep(1.5)
+    
+    import sys
+    import subprocess
+    import os
+    
+    try:
+        creationflags = 0
+        if sys.platform == 'win32':
+            creationflags = subprocess.CREATE_NO_WINDOW
+            
+        bat_path = os.path.join(BASE_DIR, "Start-Minos.bat")
+        # --silent 인자를 주어 대화식 선택창을 스킵하게 합니다.
+        subprocess.Popen([bat_path, "--silent"], shell=True, creationflags=creationflags)
+        sys.exit(0)
+    except Exception as e:
+        await update.message.reply_text(f"❌ 재부팅 배치 파일 기동 실패: {str(e)}")
+
 async def skill_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """콜백 디스패처: 버튼 타입별로 전용 헬퍼(_cb_*)에 위임합니다."""
     query = update.callback_query
@@ -1399,6 +1435,7 @@ def main():
     application.add_handler(CommandHandler('tentacles', tentacles_command))
     application.add_handler(CommandHandler('rate', rate_proposal_command))
     application.add_handler(CommandHandler('dashboard', dashboard_command))
+    application.add_handler(CommandHandler('restart', restart_command))
     application.add_handler(CallbackQueryHandler(skill_callback_handler))
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

@@ -6,7 +6,7 @@ color 0E
 cd /d "%~dp0"
 
 echo ========================================================
-echo     Antigravity Memory Engine - LLM Backend Switcher
+echo     Minos Memory Engine - LLM Backend Switcher
 echo ========================================================
 echo.
 echo 현재 설정된 엔진 상태:
