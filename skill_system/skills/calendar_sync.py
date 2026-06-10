@@ -83,7 +83,16 @@ def get_events(mode: str = "today") -> str:
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                # creds.refresh(Request())
+                creds.refresh(Request())
+            except Exception:
+                try:
+                    if os.path.exists(TOKEN_FILE):
+                        os.remove(TOKEN_FILE)
+                except Exception:
+                    pass
+                return "[calendar_sync] 토큰 갱신 실패. 다시 실행하여 재인증(setup)하세요."
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)

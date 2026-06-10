@@ -7,7 +7,7 @@ import sys
 import traceback
 from datetime import datetime
 
-# 콘솔 출력 UTF-8 강제 지정 (윈도우 환경 이모지 출력 에러 방지, 가로채기 방어)
+#   UTF-8   (     ,  )
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 if hasattr(sys.stderr, "buffer"):
@@ -32,9 +32,9 @@ def save_errors(errors):
     with open(ERROR_FILE, 'w', encoding='utf-8') as f:
         json.dump(errors, f, indent=4, ensure_ascii=False)
 
-# [오리지널 코드 보존]
+# [  ]
 # def run_tentacles():
-#     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🐙 문어발 데몬 사이클 시작...")
+#     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]     ...")
 #     errors = load_errors()
 #     
 #     config = {}
@@ -47,30 +47,30 @@ def save_errors(errors):
 #     for filename in os.listdir(BASE_DIR):
 #         if filename.endswith(".py") and filename not in ["tentacle_daemon.py", "__init__.py"]:
 #             if config.get(filename, True) is False:
-#                 print(f"  ⏭️ 스킵됨 (OFF 설정): {filename}")
+#                 print(f"  ⏭  (OFF ): {filename}")
 #                 continue
 #                 
 #             script_path = os.path.join(BASE_DIR, filename)
-#             print(f"  -> 실행 중: {filename}")
+#             print(f"  ->  : {filename}")
 #             
 #             try:
 #                 result = subprocess.run(["python", script_path], capture_output=True, text=True, timeout=60)
 #                 if result.returncode != 0:
-#                     print(f"  ❌ 에러 발생: {filename}")
+#                     print(f"  [X]  : {filename}")
 #                     errors[filename] = {
 #                         "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-#                         "error_log": result.stderr.strip()[-2000:] # 끝부분 에러 추적 2000자
+#                         "error_log": result.stderr.strip()[-2000:] #    2000
 #                     }
 #                 else:
-#                     print(f"  ✅ 정상 완료: {filename}")
+#                     print(f"  [CHECK]  : {filename}")
 #                     if filename in errors:
-#                         # 자가 치유 완료 (에러 목록에서 삭제)
+#                         #    (  )
 #                         del errors[filename]
 #             except subprocess.TimeoutExpired:
-#                 print(f"  ⏳ 타임아웃: {filename}")
+#                 print(f"  ⏳ : {filename}")
 #                 errors[filename] = {
 #                     "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-#                     "error_log": "TimeoutExpired: 60초 초과로 프로세스 강제 종료됨. 무한 루프 가능성."
+#                     "error_log": "TimeoutExpired: 60    .   ."
 #                 }
 #             except Exception as e:
 #                 errors[filename] = {
@@ -79,10 +79,10 @@ def save_errors(errors):
 #                 }
 #                 
 #     save_errors(errors)
-#     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🐙 문어발 데몬 사이클 종료.\n")
+#     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]     .\n")
 
 def run_tentacles():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🐙 [최적화 - InProcess] 문어발 데몬 사이클 시작...")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]  [ - InProcess]    ...")
     errors = load_errors()
     
     config = {}
@@ -95,13 +95,13 @@ def run_tentacles():
     for filename in os.listdir(BASE_DIR):
         if filename.endswith(".py") and filename not in ["tentacle_daemon.py", "__init__.py"]:
             if config.get(filename, True) is False:
-                print(f"  ⏭️ 스킵됨 (OFF 설정): {filename}")
+                print(f"  ⏭  (OFF ): {filename}")
                 continue
                 
             script_path = os.path.join(BASE_DIR, filename)
-            print(f"  -> 실행 중 (동적 컴파일): {filename}")
+            print(f"  ->   ( ): {filename}")
             
-            # 표준 입출력 및 표준 에러 가로채기
+            #      
             old_stdout = sys.stdout
             old_stderr = sys.stderr
             captured_stdout = io.StringIO()
@@ -109,7 +109,7 @@ def run_tentacles():
             sys.stdout = captured_stdout
             sys.stderr = captured_stderr
             
-            # 독립된 전역 네임스페이스 준비
+            #    
             script_globals = {
                 "__file__": script_path,
                 "__name__": "__main__",
@@ -123,7 +123,7 @@ def run_tentacles():
                     code = compile(f.read(), script_path, "exec")
                 exec(code, script_globals)
             except SystemExit as e:
-                # sys.exit()가 명시적으로 불린 경우
+                # sys.exit()   
                 if e.code is not None and e.code != 0:
                     has_error = True
                     err_msg = f"SystemExit code: {e.code}"
@@ -131,7 +131,7 @@ def run_tentacles():
                 has_error = True
                 err_msg = traceback.format_exc()
             finally:
-                # 표준 입출력 즉시 복구
+                #    
                 sys.stdout = old_stdout
                 sys.stderr = old_stderr
                 
@@ -139,21 +139,21 @@ def run_tentacles():
             stderr_content = captured_stderr.getvalue()
             
             if has_error:
-                print(f"  ❌ 에러 발생: {filename}")
+                print(f"  [X]  : {filename}")
                 combined_err = f"{err_msg}\n[Console Output (stderr)]:\n{stderr_content}\n[Console Output (stdout)]:\n{stdout_content}"
                 errors[filename] = {
                     "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    "error_log": combined_err[-2000:]  # 2000자 제한
+                    "error_log": combined_err[-2000:]  # 2000 
                 }
             else:
-                print(f"  ✅ 정상 완료: {filename}")
+                print(f"  [CHECK]  : {filename}")
                 if filename in errors:
                     del errors[filename]
                     
     save_errors(errors)
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🐙 [최적화 - InProcess] 문어발 데몬 사이클 종료.\n")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]  [ - InProcess]    .\n")
 
 if __name__ == "__main__":
     while True:
         run_tentacles()
-        time.sleep(60) # 1분 대기 (테스트용)
+        time.sleep(60) # 1  ()

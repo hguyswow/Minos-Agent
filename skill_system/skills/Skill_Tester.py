@@ -23,6 +23,23 @@ SKILLS_DIR = os.path.join(BASE_DIR, 'skill_system', 'skills')
 INDEX_FILE = os.path.join(BASE_DIR, 'skill_system', 'skills_index.txt')
 
 # 스킬별 테스트 인자 정의 (인자 없이 실행 가능한 스킬들은 빈 리스트)
+# TEST_ARGS = {
+#     'current_time.py':      [],
+#     'PC_System_Status.py':  [],
+#     'clipboard_manager.py': [],
+#     'process_manager.py':   [],
+#     'screen_ocr.py':        [],
+#     'Self_Code_Analyzer.py':['core_engine.py'],
+#     'Memory_Cleaner.py':    ['--dry-run'],
+#     'Performance_Logger.py':['report'],
+#     'todo_note.py':         ['테스트 메모 - Skill_Tester 자동 생성'],
+#     'Regex_Tester.py':      [r'\d+', 'abc123def456'],
+#     'Dependency_Manager.py':['check', 'requests'],
+#     'wiki_search.py':       ['인공지능'],
+#     'web_search.py':        ['파이썬 최신 버전'],
+#     'Weather_API_Caller.py':[],
+# }
+
 TEST_ARGS = {
     'current_time.py':      [],
     'PC_System_Status.py':  [],
@@ -38,6 +55,8 @@ TEST_ARGS = {
     'wiki_search.py':       ['인공지능'],
     'web_search.py':        ['파이썬 최신 버전'],
     'Weather_API_Caller.py':[],
+    'calendar_sync.py':     ['today'],
+    'calendar_add.py':      ['--title', '테스트 일정', '--start', '2026-06-10T23:00:00'],
 }
 
 def test_skill(skill_file, extra_args=None):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 reminder_checker_tentacle.py
-tentacle_daemon.py가 1분마다 호출 → 예약된 알람 시간 도달 시 신호 전송
+tentacle_daemon.py 1  →       
 """
 import os
 import sys
@@ -11,7 +11,7 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SIGNAL_FILE = os.path.join(BASE_DIR, "logs", "tentacle_signals.json")
 
-# 메인 프로젝트 루트 탐색 (tentacles/ 의 부모)
+#     (tentacles/  )
 PROJECT_DIR = os.path.dirname(BASE_DIR)
 REMINDER_FILE = os.path.join(PROJECT_DIR, "state", "reminders.json")
 
@@ -48,15 +48,15 @@ for r in reminders:
 if not triggered:
     sys.exit(0)
 
-# 업데이트된 알람 저장
+#   
 tmp = REMINDER_FILE + ".tmp"
 with open(tmp, 'w', encoding='utf-8') as f:
     json.dump(updated, f, ensure_ascii=False, indent=2)
 os.replace(tmp, REMINDER_FILE)
 
-# 신호 전송
+#  
 full_msg = "\n\n".join([
-    f"⏰ [알람]\n\n{r['message']}"
+    f"⏰ []\n\n{r['message']}"
     for r in triggered
 ])
 
@@ -76,6 +76,6 @@ try:
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(signals, f, indent=4, ensure_ascii=False)
     os.replace(tmp, SIGNAL_FILE)
-    print(f"[SUCCESS] 알람 {len(triggered)}건 발송")
+    print(f"[SUCCESS]  {len(triggered)} ")
 except Exception as e:
-    print(f"[ERROR] 신호 저장 실패: {e}")
+    print(f"[ERROR]   : {e}")

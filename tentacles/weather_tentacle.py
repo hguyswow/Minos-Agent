@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 weather_tentacle.py
-Open-Meteo 무료 API로 실시간 날씨 조회 후 신호 발송 (3시간 쿨다운)
+Open-Meteo  API       (3 )
 """
 import os
 import sys
@@ -18,7 +18,7 @@ INTERVAL_HOURS = 3
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(SIGNAL_FILE), exist_ok=True)
 
-# 3시간 쿨다운 체크
+# 3  
 if os.path.exists(DATA_FILE):
     try:
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -27,12 +27,12 @@ if os.path.exists(DATA_FILE):
         if last_str:
             last_dt = datetime.strptime(last_str, "%Y-%m-%d %H:%M")
             if datetime.now() - last_dt < timedelta(hours=INTERVAL_HOURS):
-                print(f"[INFO] {INTERVAL_HOURS}시간 쿨다운 중. 종료.")
+                print(f"[INFO] {INTERVAL_HOURS}  . .")
                 sys.exit(0)
     except Exception:
         pass
 
-# Open-Meteo API (서울 좌표)
+# Open-Meteo API ( )
 LATITUDE = 37.5665
 LONGITUDE = 126.9780
 
@@ -52,18 +52,18 @@ def get_weather():
         code = current.get("weather_code", 0)
         wind = current.get("wind_speed_10m", 0)
 
-        # WMO 날씨 코드 → 한국어 설명
+        # WMO   →  
         weather_desc = {
-            0: "맑음", 1: "대체로 맑음", 2: "부분적 흐림", 3: "흐림",
-            45: "안개", 48: "안개(빙결)", 51: "가랑비", 53: "보통 가랑비",
-            55: "강한 가랑비", 61: "약한 비", 63: "보통 비", 65: "강한 비",
-            71: "약한 눈", 73: "보통 눈", 75: "강한 눈", 80: "소나기",
-            95: "뇌우", 99: "강한 뇌우"
-        }.get(code, f"날씨코드:{code}")
+            0: "", 1: " ", 2: " ", 3: "",
+            45: "", 48: "()", 51: "", 53: " ",
+            55: " ", 61: " ", 63: " ", 65: " ",
+            71: " ", 73: " ", 75: " ", 80: "",
+            95: "", 99: " "
+        }.get(code, f":{code}")
 
         return temp, weather_desc, wind
     except Exception as e:
-        print(f"[ERROR] 날씨 API 실패: {e}")
+        print(f"[ERROR]  API : {e}")
         return None, None, None
 
 temp, desc, wind = get_weather()
@@ -73,14 +73,14 @@ if temp is None:
 
 now = datetime.now()
 message = (
-    f"🌤 [서울 날씨 업데이트]\n\n"
-    f"🌡 기온: {temp}°C\n"
-    f"☁ 날씨: {desc}\n"
-    f"💨 풍속: {wind} km/h\n\n"
-    f"📅 {now.strftime('%Y-%m-%d %H:%M')} 기준"
+    f" [  ]\n\n"
+    f" : {temp}°C\n"
+    f" : {desc}\n"
+    f" : {wind} km/h\n\n"
+    f" {now.strftime('%Y-%m-%d %H:%M')} "
 )
 
-# 신호 저장
+#  
 try:
     signals = {}
     if os.path.exists(SIGNAL_FILE):
@@ -98,9 +98,9 @@ try:
         json.dump(signals, f, indent=4, ensure_ascii=False)
     os.replace(tmp, SIGNAL_FILE)
 except Exception as e:
-    print(f"[ERROR] 신호 저장 실패: {e}")
+    print(f"[ERROR]   : {e}")
 
-# 캐시 저장
+#  
 try:
     cache_data = {"temperature": temp, "desc": desc, "wind": wind, "updated": now.strftime("%Y-%m-%d %H:%M")}
     tmp = DATA_FILE + ".tmp"
@@ -108,6 +108,6 @@ try:
         json.dump(cache_data, f, ensure_ascii=False)
     os.replace(tmp, DATA_FILE)
 except Exception as e:
-    print(f"[ERROR] 캐시 저장 실패: {e}")
+    print(f"[ERROR]   : {e}")
 
-print(f"[SUCCESS] 날씨 알림 전송 완료:\n{message}")
+print(f"[SUCCESS]    :\n{message}")

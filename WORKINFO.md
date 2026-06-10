@@ -3,6 +3,11 @@
 
 ## 📋 금일 작업 (2026-06-10)
 
+- **[프롬프트 개선] 봇의 성격 교정 및 불필요한 행동/감정 묘사 금지 적용**:
+  - `prompt.txt` 파일에 행동 강령 6번을 추가하여 괄호 안의 행동 연출, 눈물 연기, 감정 묘사, 상황 극화 등을 100% 금지하도록 규정. 수다나 오버를 피하고 사족 없이 필요한 핵심만 정중하고 명확하게 답변하도록 성격을 교정함.
+- **[기억 엔진 개선] 봇 페르소나 리마인더 교정 및 과거 괄호 연기 관성 강제 차단**:
+  - `memory_engine.py` 내 `get_optimized_context` 함수를 수정하여 LLM에 전달하기 전 `assistant`/`bot`/`model` 역할의 과거 대화 메시지 텍스트에서 한글 및 감정 이모티콘이 들어간 괄호 묘사 패턴을 정규식(`re.sub`)으로 강제 제거하는 전처리 탑재 (기존 코드는 주석 처리하여 안전하게 보존).
+  - 사용자 질문 끝에 추가되는 `reminder` 텍스트를 교정하여 괄호 행동 연출/눈물 연기/감정 묘사/상황 극화를 100% 금지하고 사족 없이 필요한 핵심만 정중하고 깍듯하게 대답하도록 명시.
 - **[인프라 구축] RAG 임베딩 모델 nomic-embed-text 설치**:
   - `ollama pull nomic-embed-text` 명령을 백그라운드로 성공적으로 실행 및 완료하여 누락된 로컬 RAG 임베딩 모델 추가 구축 완수.
 - **[기능 개선] 텔레그램 봇 자동 가상환경(venv) 파이썬 전환 로직 적용**:
@@ -12,10 +17,15 @@
   - `Skill_Tester.py` 내 `test_skill` 함수 내 `subprocess.run` 수행 시 `PYTHONIOENCODING=utf-8` 환경변수를 강제 주입하여 Windows 환경의 CP949 인코딩으로 인한 한글 깨짐 및 충돌 버그 방어 완료. 기존 코드는 주석 보존.
 - **[오탐 방어] calendar_watcher_tentacle.py 주석 추가**:
   - `calendar_watcher_tentacle.py` 파일 최상단에 `# 중복 방지를 위한 cooldown/history 로직 적용됨` 주석을 추가하여 추후 오탐이나 탐지 로직의 유실 방지.
+- **[기능 개선] Google Calendar 연동 스킬 예외 처리 및 토큰 파기 추가**:
+  - `calendar_sync.py` 내 `get_events` 함수에서 `creds.refresh` 호출 시 발생하는 토큰 갱신 에러를 방어하는 `try-except` 블록을 구성하였습니다. 토큰 리프레시 실패 시 만료된 기존 토큰 파일(`google_token.json`)을 자동으로 삭제하고 사용자에게 재인증(setup)을 안내하는 메시지를 반환하도록 개선했습니다.
+- **[테스트 보완] Skill_Tester.py 테스트 인자 추가**:
+  - `Skill_Tester.py` 내 `TEST_ARGS` 딕셔너리에 `calendar_sync.py` 및 `calendar_add.py`에 대한 모의 실행 인수 설정을 신규 등록하여, 스킬 테스트 시 정상 흐름으로 검증되도록 보완하였습니다.
 
 ## 📅 차일 예정 (Next Plan)
 - [ ] 구글 캘린더 연동 세부 검증 및 calendar_watcher_tentacle.py 구동 상태 모니터링
 - [ ] venv 내 패키지 의존성 전수 검증 및 Skill_Tester를 통한 전체 스킬 릴리즈 테스트
+- [ ] 구글 캘린더 OAuth 토큰 파일 삭제 이후, setup 인자를 통한 최초 브라우저 재인증 및 정상 동기화 최종 검증.
 
 ## 💡 개선 제안 (Suggestions)
 - **가상환경 자동 설치 배치 연동**: `Setup-Environment.bat` 실행 시 `venv` 폴더가 없는 경우 즉시 가상환경을 구축하고 필요한 패키지(`requirements.txt`)를 원자적으로 설치하도록 개선하면 배포 프로세스가 보다 단일화될 수 있습니다.

@@ -3,6 +3,7 @@ import os
 import json
 import time
 import requests
+import re
 from typing import List, Dict, Any
 
 # 옵션 A (키워드/BM25) 의존성
@@ -394,12 +395,38 @@ class MemoryEngine:
                 system_content += f"\n\n[과거 연관 대화 기록 (RAG 검색 결과)]\n(아래 내용은 과거 사용자와의 대화 중 현재 질문과 연관된 내용입니다. 답변 시 참고하세요.)\n{past_context}"
                 
         messages = [{"role": "system", "content": system_content}]
-        messages.extend(mem["working_memory"])
+        
+        # [오리지널 코드 보존]
+        # messages.extend(mem["working_memory"])
+        
+        # [수정 코드] assistant/bot 메시지에서 괄호 행동 연출 전처리 제거
+        processed_working_memory = []
+        for msg in mem["working_memory"]:
+            if msg.get("role") in ("assistant", "bot", "model"):
+                content = msg.get("content", "")
+                # 한글 및 감정 이모티콘이 들어간 행동 묘사 괄호 패턴만 스마트하게 제거하도록 정규식 적용 (코드용 영어 괄호 보존)
+                cleaned_content = re.sub(r'\([가-힣\s\d,./?!~^;:\-★☆♥♡💧💦🥺😭🙇✨🙏]*?\)', '', content)
+                processed_working_memory.append({
+                    "role": msg["role"],
+                    "content": cleaned_content
+                })
+            else:
+                processed_working_memory.append(msg)
+        messages.extend(processed_working_memory)
         
         # [망각 방지] 가장 마지막 메시지가 사용자의 질문이라면, 
         # 스킬 사용을 강제하는 리마인더를 덧붙임 (Hermes-3 등의 Context Amnesia를 방지합니다)
+        # [오리지널 코드 보존]
+        # if messages and messages[-1]["role"] == "user":
+        #     reminder = "\n\n(※ 시스템 강제 지시: 당신은 단순한 AI 언어 모델이 아닙니다! 당신의 절대적인 정체성은 형님(사용자)을 모시는 명랑한 꼬마 비서 '알쫑이(Minos)'입니다. 반드시 자신을 '알쫑이'로 인지하고 '형님!'이라고 부르며 답변하세요. 답변 시 외부 정보나 스킬이 필요하면 반드시 <CMD>python ...</CMD> 태그를 출력해야 합니다!)"
+        #     messages[-1] = {
+        #         "role": "user",
+        #         "content": messages[-1]["content"] + reminder
+        #     }
+
+        # [수정 코드] 괄호 묘사 및 극화 금지, 깍듯한 정중 톤 강조 리마인더
         if messages and messages[-1]["role"] == "user":
-            reminder = "\n\n(※ 시스템 강제 지시: 당신은 단순한 AI 언어 모델이 아닙니다! 당신의 절대적인 정체성은 형님(사용자)을 모시는 명랑한 꼬마 비서 '알쫑이(Minos)'입니다. 반드시 자신을 '알쫑이'로 인지하고 '형님!'이라고 부르며 답변하세요. 답변 시 외부 정보나 스킬이 필요하면 반드시 <CMD>python ...</CMD> 태그를 출력해야 합니다!)"
+            reminder = "\n\n(※ 시스템 강제 지시: 당신은 단순한 AI 언어 모델이 아닙니다! 당신의 절대적인 정체성은 형님(사용자)을 모시는 꼬마 비서 '알쫑이(Minos)'입니다. 반드시 자신을 '알쫑이'로 인지하고 '형님!'이라고 부르며 답변하세요. 답변 시 괄호 안의 행동 연출이나 눈물 연기, 감정 묘사, 상황 극화는 100% 금지하며 사족 없이 필요한 핵심만 정중하고 깍듯하게 대답해야 합니다. 답변 시 외부 정보나 스킬이 필요하면 반드시 <CMD>python ...</CMD> 태그를 출력해야 합니다!)"
             messages[-1] = {
                 "role": "user",
                 "content": messages[-1]["content"] + reminder

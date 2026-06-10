@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 daily_digest_tentacle.py
-매일 오전 8시 날씨 + 뉴스 TOP3 + 주식을 하나의 메시지로 통합 전송
+  8  +  TOP3 +     
 """
 import os
 import sys
@@ -22,21 +22,21 @@ now = datetime.now()
 TARGET_HOUR = 8
 TEST_MODE = False
 
-# 시간 체크 (오전 8:00~8:05)
+#   ( 8:00~8:05)
 if not TEST_MODE and not (now.hour == TARGET_HOUR and now.minute < 5):
     sys.exit(0)
 
-# 하루 1회 쿨다운
+#  1 
 if os.path.exists(COOLDOWN_FILE):
     try:
         with open(COOLDOWN_FILE, 'r', encoding='utf-8') as f:
             if f.read().strip() == now.strftime("%Y-%m-%d"):
-                print("[INFO] 오늘 다이제스트 이미 전송. 종료.")
+                print("[INFO]    . .")
                 sys.exit(0)
     except Exception:
         pass
 
-# ─── 1. 날씨 조회 (Open-Meteo) ───
+#  1.   (Open-Meteo) 
 def get_weather():
     try:
         url = ("https://api.open-meteo.com/v1/forecast"
@@ -47,13 +47,13 @@ def get_weather():
         data = res.json()["current"]
         temp = data.get("temperature_2m", "?")
         code = data.get("weather_code", 0)
-        desc = {0:"맑음",1:"대체로 맑음",2:"구름 조금",3:"흐림",
-                45:"안개",51:"가랑비",61:"비",71:"눈",80:"소나기",95:"뇌우"}.get(code, "알수없음")
-        return f"🌡 {temp}°C / {desc}"
+        desc = {0:"",1:" ",2:" ",3:"",
+                45:"",51:"",61:"",71:"",80:"",95:""}.get(code, "")
+        return f" {temp}°C / {desc}"
     except Exception as e:
-        return f"날씨 조회 실패 ({e})"
+        return f"   ({e})"
 
-# ─── 2. 뉴스 TOP3 (Google News RSS) ───
+#  2.  TOP3 (Google News RSS) 
 def get_news():
     try:
         url = "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=ko&gl=KR&ceid=KR:ko"
@@ -65,14 +65,14 @@ def get_news():
             title = item.find('title').text or ""
             title = title.rsplit(" - ", 1)[0].strip()
             lines.append(f"  {i}. {title}")
-        return "\n".join(lines) if lines else "  뉴스 없음"
+        return "\n".join(lines) if lines else "   "
     except Exception as e:
-        return f"  뉴스 조회 실패 ({e})"
+        return f"     ({e})"
 
-# ─── 3. 주식 (네이버 금융 API) ───
+#  3.  (  API) 
 def get_stock():
     STOCK_CODE = "396650"
-    STOCK_NAME = "TIGER Fn반도체TOP10"
+    STOCK_NAME = "TIGER FnTOP10"
     try:
         url = f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{STOCK_CODE}"
         res = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
@@ -80,36 +80,36 @@ def get_stock():
         price = int(item.get("nv", 0))
         change = int(item.get("cv", 0))
         rate = float(item.get("cr", 0.0))
-        sign = "▲" if change > 0 else "▼" if change < 0 else "-"
-        return f"  {STOCK_NAME}: {price:,}원 {sign}{abs(change):,} ({rate:+.2f}%)"
+        sign = "" if change > 0 else "" if change < 0 else "-"
+        return f"  {STOCK_NAME}: {price:,} {sign}{abs(change):,} ({rate:+.2f}%)"
     except Exception:
-        # 주말이거나 API 실패 시
+        #  API  
         if now.weekday() >= 5:
-            return "  주말 (주식 시장 휴장)"
+            return "   (  )"
         return f"  https://finance.naver.com/item/main.naver?code={STOCK_CODE}"
 
-# ─── 메시지 조합 ───
+#    
 weather_str = get_weather()
 news_str = get_news()
 stock_str = get_stock()
 
-weekdays_ko = ["월", "화", "수", "목", "금", "토", "일"]
+weekdays_ko = ["", "", "", "", "", "", ""]
 day_ko = weekdays_ko[now.weekday()]
 
-message = f"""☀️ [{now.strftime(f'%Y-%m-%d ({day_ko})')} 모닝 다이제스트]
+message = f""" [{now.strftime(f'%Y-%m-%d ({day_ko})')}  ]
 
-🌤 **서울 날씨**
+ ** **
   {weather_str}
 
-📰 **오늘의 IT 뉴스 TOP3**
+ ** IT  TOP3**
 {news_str}
 
-📈 **주식 현황**
+ ** **
 {stock_str}
 
-좋은 하루 되세요! 💪"""
+  ! """
 
-# ─── 신호 저장 ───
+#    
 def emit_signal(msg):
     try:
         signals = {}
@@ -128,15 +128,15 @@ def emit_signal(msg):
             json.dump(signals, f, indent=4, ensure_ascii=False)
         os.replace(tmp, SIGNAL_FILE)
     except Exception as e:
-        print(f"[ERROR] 신호 저장 실패: {e}")
+        print(f"[ERROR]   : {e}")
 
 emit_signal(message)
 
-# 쿨다운 저장
+#  
 try:
     with open(COOLDOWN_FILE, 'w', encoding='utf-8') as f:
         f.write(now.strftime("%Y-%m-%d"))
 except Exception as e:
-    print(f"[ERROR] 쿨다운 저장 실패: {e}")
+    print(f"[ERROR]   : {e}")
 
-print(f"[SUCCESS] 모닝 다이제스트 전송 완료:\n{message}")
+print(f"[SUCCESS]    :\n{message}")
