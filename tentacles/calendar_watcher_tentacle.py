@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
+#    cooldown/history  
 """
 calendar_watcher_tentacle.py
-10분마다 실행. 오늘 일정 중 30분 내로 다가오는 일정을 찾아 알람 전송.
+10 .    30      .
 """
 import os
 import sys
@@ -32,7 +33,7 @@ def save_history(history):
     os.replace(tmp, HISTORY_FILE)
 
 def run():
-    # 설정 가져오기 (문어발 On/Off 검사)
+    #   ( On/Off )
     config_file = os.path.join(BASE_DIR, "data", "tentacle_config.json")
     if os.path.exists(config_file):
         try:
@@ -89,7 +90,7 @@ def run():
         history = load_history()
         alerted = history.get("alerted_events", [])
         
-        # 일주일 이상 지난 로그 지우기 등 관리가 필요하지만 단순화
+        #         
         if len(alerted) > 1000:
             alerted = alerted[-500:]
         
@@ -105,15 +106,15 @@ def run():
                 diff_mins = (dt - now_utc).total_seconds() / 60.0
                 
                 if 0 <= diff_mins <= 35:
-                    summary = event.get('summary', '(제목 없음)')
+                    summary = event.get('summary', '( )')
                     loc = event.get('location', '')
-                    loc_str = f"\n📍 장소: {loc}" if loc else ""
+                    loc_str = f"\n : {loc}" if loc else ""
                     
                     import time
                     local_tz = timezone(timedelta(seconds=-time.timezone))
                     local_time_str = dt.astimezone(local_tz).strftime("%H:%M")
                     
-                    msg = f"⏰ [일정 임박] 잠시 후 {local_time_str}에 일정이 시작됩니다.\n- {summary}{loc_str}"
+                    msg = f"⏰ [ ]   {local_time_str}  .\n- {summary}{loc_str}"
                     new_alerts.append(msg)
                     alerted.append(event_id)
             else:

@@ -1,7 +1,44 @@
 # Minos Memory Engine - WORKINFO.md
-> 최종 업데이트: 2026-05-24 (6~7단계 완수 + 텔레그램 dashboard/restart 원격 제어 및 프로젝트 명칭 통일 완수)
+> 최종 업데이트: 2026-06-10
+
+## 📋 금일 작업 (2026-06-10)
+
+- **[인프라 구축] RAG 임베딩 모델 nomic-embed-text 설치**:
+  - `ollama pull nomic-embed-text` 명령을 백그라운드로 성공적으로 실행 및 완료하여 누락된 로컬 RAG 임베딩 모델 추가 구축 완수.
+- **[기능 개선] 텔레그램 봇 자동 가상환경(venv) 파이썬 전환 로직 적용**:
+  - `antigravity_telegram.py` 내 `execute_command_and_continue` 함수 수정.
+  - 실행하려는 명령어(`cmd`)가 `python `으로 시작하고 가상환경(`venv\Scripts\python.exe`)이 실재하는 경우 자동으로 가상환경 파이썬 경로로 교체하여 격리 실행되도록 개선 완료. 기존 코드는 주석 처리하여 안전하게 보존.
+- **[버그 방어] Skill_Tester.py 인코딩 환경변수 주입**:
+  - `Skill_Tester.py` 내 `test_skill` 함수 내 `subprocess.run` 수행 시 `PYTHONIOENCODING=utf-8` 환경변수를 강제 주입하여 Windows 환경의 CP949 인코딩으로 인한 한글 깨짐 및 충돌 버그 방어 완료. 기존 코드는 주석 보존.
+- **[오탐 방어] calendar_watcher_tentacle.py 주석 추가**:
+  - `calendar_watcher_tentacle.py` 파일 최상단에 `# 중복 방지를 위한 cooldown/history 로직 적용됨` 주석을 추가하여 추후 오탐이나 탐지 로직의 유실 방지.
+
+## 📅 차일 예정 (Next Plan)
+- [ ] 구글 캘린더 연동 세부 검증 및 calendar_watcher_tentacle.py 구동 상태 모니터링
+- [ ] venv 내 패키지 의존성 전수 검증 및 Skill_Tester를 통한 전체 스킬 릴리즈 테스트
+
+## 💡 개선 제안 (Suggestions)
+- **가상환경 자동 설치 배치 연동**: `Setup-Environment.bat` 실행 시 `venv` 폴더가 없는 경우 즉시 가상환경을 구축하고 필요한 패키지(`requirements.txt`)를 원자적으로 설치하도록 개선하면 배포 프로세스가 보다 단일화될 수 있습니다.
+
+## 📋 금일 작업 (2026-05-25)
+
+- **[트러블슈팅 완료] 타오나스(XPEnology) DS918+ 마이그레이션 및 DSM 7.3.2 완전 복구 성공**:
+  - 구버전 부트로더(ARPL v23.9.6) → 신버전 RR 부트로더(v26.4.0) 교체 완료. 새 16GB USB에 `rr.img` 플래싱 후 외부 USB로 전환.
+  - 기존 모델(`DS3622xs+`, iGPU 없음) → `DS918+`(Apollo Lake, Intel QuickSync 지원)으로 모델 교체 성공.
+  - DSM 버전 `7.3.2-86009` 마이그레이션 모드 설치 완료. **하드디스크 데이터 100% 보존 확인** (Synology Photos, Jellyfin, File Station 등 모든 패키지 정상 복구).
+  - 패키지 업데이트 단계 2/2 (10/10) 완료 후 DSM 한국어 바탕화면 정상 진입 확인.
+  - **현재 NAS IP**: `192.168.0.157` (새 USB MAC 주소로 인해 임시 변경된 상태)
+  - **QuickConnect 이슈**: 타오바오 구매 S/N(`2032PDN843606`)/MAC(`001132CA05BB`)과 현재 RR 로더 자동생성 값(`19A2PDN049513`/`001132BEA2F5`)이 달라 `hguyswow.quickconnect.to` 미등록 상태. 내일 RR 로더 Cmdline에서 원래 값 이식 필요.
 
 ## 📋 금일 작업 (2026-05-24)
+
+- **[트러블슈팅] Windows 게임 실행 후 중국어/몽골어 입력기 자동 추가 버그 및 단축키 차단 조치 완수**:
+  - 디비전 2 등 특정 게임을 가동한 후 시스템에 중국어(간체)나 몽골어 입력기가 원치 않게 강제 등록되고 한글 입력이 막히는 윈도우 고질병 원인 분석.
+  - 전용 파워쉘 스크립트(`scratch/fix_keyboard.ps1`)를 설계 및 실행하여 유령 언어를 일괄 삭제하고, 윈도우 키보드 레이아웃 전환 단축키(Alt + Shift 등)를 레지스트리 수준에서 비활성화하여 오작동 재발을 방지함.
+
+- **[트러블슈팅] NAS 토렌트(Transmission) 중지 에러 분석 및 조치 완수**:
+  - **오류 분석**: Transmission Web UI의 "이력서(resume) 파일 저장 불가" 오류가 다른 NAS의 자동 파일 이동 스크립트와 충돌하여 발생함을 확인.
+  - **직접 조치 및 가이드 제공**: 93번 타오나스의 자동 이동 스크립트(`/volume1/scripts/move_torrents.sh`)를 직접 SSH로 원격 수정하여 `.session` 및 `incomplete/` 폴더가 rsync에 의해 삭제되지 않도록 배제 처리 완료. 55번 iptime NAS의 `settings.json` 전체 수정 코드 및 안전한 서비스 중지/시작 적용 프로토콜 가이드 완료.
 
 - **[버그 픽스] Edge-TTS 비동기 이벤트 루프 충돌 해결**:
   - **비동기 격리 스레드 도입**: 텔레그램 봇의 메인 `asyncio` 이벤트 루프 내에서 Edge-TTS 오디오 파일 생성을 시도할 때 `asyncio.run() cannot be called from a running event loop` 에러가 발생하던 현상을 해결하기 위해, 별도의 격리된 백그라운드 스레드에서 전용 이벤트 루프를 생성해 비동기 음성 합성을 완료하는 `_run_coroutine_in_new_thread()` 헬퍼를 도입하여 충돌 문제를 완벽히 해결했습니다.
@@ -235,6 +272,9 @@
 ---
 
 ## 📅 차일 예정 (Next Plan)
+- [ ] **[내일 최우선] 타오나스 QuickConnect S/N/MAC 이식**: NAS 재부팅 후 RR 로더 웹UI(`192.168.0.157:7681`) 접속 → Cmdline menu → `Set serial: 2032PDN843606` / `Set mac1: 001132CA05BB` 입력 → Build → 재부팅. 완료 후 `hguyswow.quickconnect.to` 정상 접속 확인.
+- [ ] **[내일] 타오나스 고정 IP `.93` 복원**: DSM 제어판 → 네트워크 → 수동 IP `192.168.0.93` 설정. 기존 포트포워딩 자동 복원.
+- [ ] **[내일] DS918+ Intel QuickSync 트랜스코딩 확인**: Jellyfin 설정에서 하드웨어 가속(Intel QuickSync) 활성화 여부 확인 및 Synology Photos AI 기능 테스트.
 - [ ] **홍보 및 비주얼 요소 가공**: 사용자가 커뮤니티에 즉시 올릴 수 있도록 텔레그램 봇 응답 화면 캡처 및 대시보드 리소스 게이지 위젯 동작 GIF 제작 지원.
 - [ ] **리포지토리 검색 태그(Topics) 최적화**: 깃허브 웹 화면에서 `ai-agent`, `ollama`, `personal-assistant` 등 유입 키워드 설정 가이드 및 적용.
 - [x] **사용자 지정 문어발 생성기 Web UI 연동**: 대시보드 내에서 손쉽게 BeautifulSoup 기반의 문어발 수집 에이전트를 실시간 컴파일하여 생성 및 자동 구동하는 기능 구현 완료. (2026-05-24)

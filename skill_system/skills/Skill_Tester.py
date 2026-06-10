@@ -50,13 +50,25 @@ def test_skill(skill_file, extra_args=None):
 
     start = time.time()
     try:
+        # 기존 subprocess.run 코드 주석 보존
+        # result = subprocess.run(
+        #     cmd,
+        #     capture_output=True,
+        #     text=True,
+        #     encoding='utf-8',
+        #     errors='replace',
+        #     timeout=20
+        # )
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             encoding='utf-8',
             errors='replace',
-            timeout=20
+            timeout=20,
+            env=env
         )
         elapsed = round(time.time() - start, 2)
         if result.returncode == 0:

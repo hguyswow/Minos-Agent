@@ -967,7 +967,14 @@ async def execute_command_and_continue(cmd: str, update: Update, context: Contex
         )
         return
 
+    # 기존 코드 보존
+    # bot = context.bot if context else application.bot
+    # status_msg = await bot.send_message(chat_id=chat_id, text=f"⚡ 윈도우 터미널 명령어 (비동기) 실행 중...\n`{cmd}`", parse_mode='Markdown')
+
     bot = context.bot if context else application.bot
+    venv_python = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
+    if cmd.startswith("python ") and os.path.exists(venv_python):
+        cmd = f'"{venv_python}" ' + cmd[7:]
     status_msg = await bot.send_message(chat_id=chat_id, text=f"⚡ 윈도우 터미널 명령어 (비동기) 실행 중...\n`{cmd}`", parse_mode='Markdown')
     
     async def _run_async_task():
