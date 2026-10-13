@@ -1,0 +1,11 @@
+name: minos_pc
+version: 4.3.0
+description: "Minos PC helpers - Windows volume/mute/lock/whitelisted app launch, disk & LM Studio status, audiobook MP3 ID3 tagging."
+kind: standalone
+provides_tools:
+  - get_system_status
+  - control_pc_system
+  - tag_audiobook_mp3
+pip_dependencies:
+  - mutagen
+  - pycaw

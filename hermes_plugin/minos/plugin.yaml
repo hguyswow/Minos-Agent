@@ -1,0 +1,6 @@
+name: minos
+version: 5.1.0
+description: "Minos Memory Engine — SQLite (FTS5 trigram) full-history recall, pinned facts, project board, knowledge graph, secret redaction; optional ChromaDB vectors."
+pip_dependencies:
+  - rank-bm25
+  - chromadb

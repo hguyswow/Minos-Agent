@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Minos Memory & Knowledge Operating Engine v4.2 (Standalone Portable Edition).
+Minos Memory & Knowledge Operating Engine v5.1 (Standalone Portable Edition).
 
 Designed for seamless porting to any AI Agent framework (LangChain, AutoGPT, LlamaIndex, custom bots).
+Backed by a shared SQLite store (minos.db, same file as the Hermes plugin).
 Provides:
 1. Knowledge Graph Subsystem (Entity-Relationship graph)
 2. Pinned Permanent Facts (Zero time-decay)
@@ -15,6 +16,7 @@ Provides:
 """
 from __future__ import annotations
 import os
+import sys
 import json
 import time
 import requests
@@ -28,6 +30,9 @@ from collections import deque
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from minos_store import MinosStore, redact_secrets
 
 logger = logging.getLogger("MinosEngine")
 
@@ -231,7 +236,7 @@ def fuse_rankings(ranked_lists: List[List[str]], timestamps: Dict[str, float], t
 
 
 class MinosEngine:
-    """Portable, Thread- and Process-Safe Minos Memory & Knowledge Operating Engine v4.2."""
+    """Portable, Thread- and Process-Safe Minos Memory & Knowledge Operating Engine v5.1."""
 
     def __init__(self, storage_dir: Optional[str] = None, lms_url: str = "http://127.0.0.1:1234"):
         raw_dir = storage_dir or os.environ.get("MINOS_STORAGE_DIR") or "./minos_storage"
@@ -240,22 +245,6 @@ class MinosEngine:
         os.makedirs(self.storage_dir, exist_ok=True)
 
         self._db_path = self._resolve_vector_db_path()
-        self._memory_file = os.path.join(self.storage_dir, "minos_memory.json")
-        self._episodic_file = os.path.join(self.storage_dir, "minos_episodic.jsonl")
-        self._graph_file = os.path.join(self.storage_dir, "minos_graph.json")
-        self._lock_file = os.path.join(self.storage_dir, ".minos.lock")
-
-        self._io_lock = threading.Lock()
-
-        # State containers (cached copy of the files; refreshed when another process writes)
-        self._semantic_memory = ""
-        self._working_memory: List[Dict[str, str]] = []
-        self._pinned_memories: List[str] = []
-        self._projects: Dict[str, Dict[str, Any]] = {}
-        self._graph_nodes: Dict[str, Dict[str, Any]] = {}
-        self._graph_edges: List[Dict[str, str]] = []
-        self._memory_mtime = None
-        self._graph_mtime = None
 
         # Vector Client
         self._chroma_client = None
@@ -271,41 +260,22 @@ class MinosEngine:
         # keep using the same embedding space whenever possible.
         self._embed_pref = 0
 
-        # BM25 Cache: parallel lists of documents, timestamps and token sets
-        self._bm25_model = None
-        self._bm25_corpus: List[str] = []
-        self._bm25_timestamps: List[float] = []
-        self._bm25_token_sets: List[set] = []
-        self._bm25_last_mtime = 0.0
-
-        with self._shared_state():
-            pass
-
-    @contextmanager
-    def _shared_state(self):
-        """Hold the thread lock and the cross-process file lock, with state freshly loaded.
-
-        Every mutation happens inside this block and saves before leaving it, so a write
-        from one process can no longer overwrite what another process saved in between.
-        """
-        with self._io_lock, InterProcessLock(self._lock_file):
-            self._refresh_unlocked()
-            yield
+        # SQLite Store (shared with Hermes plugin)
+        db_file = os.path.join(self.storage_dir, "minos.db")
+        self._store = MinosStore(db_file)
+        self._store.migrate_from_v4(self.storage_dir)
 
     # --- 1. Pinned Facts (Never-decay) ---
     def pin_fact(self, fact: str) -> str:
         clean = (fact or "").strip()
         if not clean:
             return "오류: 팩트 내용이 비어있습니다."
-        with self._shared_state():
-            if clean not in self._pinned_memories:
-                self._pinned_memories.append(clean)
-                self._save_memory_unlocked()
+        clean = redact_secrets(clean)
+        self._store.add_pin(clean)
         return f"성공: 중요 핀 등록 완료 -> '{clean}'"
 
     def get_pinned_facts(self) -> List[str]:
-        with self._shared_state():
-            return list(self._pinned_memories)
+        return self._store.list_pins()
 
     # --- 2. Project Status Dashboard ---
     def update_project(self, project_name: str, status: str, details: str) -> str:
@@ -314,51 +284,35 @@ class MinosEngine:
         det = (details or "").strip()
         if not name:
             return "오류: 프로젝트 이름이 비어있습니다."
-        with self._shared_state():
-            self._projects[name] = {
-                "status": st,
-                "details": det,
-                "updated_at": time.strftime("%Y-%m-%d %H:%M")
-            }
-            self._save_memory_unlocked()
+        self._store.upsert_project(name, st, det)
         return f"성공: 프로젝트 상태 갱신 -> [{st.upper()}] {name}: {det}"
 
     def get_projects(self) -> Dict[str, Dict[str, Any]]:
-        with self._shared_state():
-            return dict(self._projects)
+        return self._store.list_projects()
 
     # --- 3. Knowledge Graph Subsystem ---
     def add_relation(self, source: str, relation: str, target: str, details: Optional[str] = None) -> str:
-        src = (source or "").strip()
-        rel = (relation or "").strip()
-        tgt = (target or "").strip()
+        src = redact_secrets((source or "").strip())
+        rel = redact_secrets((relation or "").strip())
+        tgt = redact_secrets((target or "").strip())
         if not (src and rel and tgt):
             return "오류: source, relation, target이 모두 필요합니다."
-        with self._shared_state():
-            if src not in self._graph_nodes:
-                self._graph_nodes[src] = {"type": "auto", "attributes": {}}
-            if tgt not in self._graph_nodes:
-                self._graph_nodes[tgt] = {"type": "auto", "attributes": {}}
-            if details:
-                self._graph_nodes[src]["attributes"]["details"] = details
-
-            exists = any(e.get("source") == src and e.get("relation") == rel and e.get("target") == tgt for e in self._graph_edges)
-            if not exists:
-                self._graph_edges.append({"source": src, "relation": rel, "target": tgt})
-            self._save_graph_unlocked()
+        self._store.add_edge(src, rel, tgt)
+        if details:
+            self._store.set_node_attribute(src, "details", details)
         return f"성공: 지식 관계 등록 -> '{src}' ──[{rel}]──> '{tgt}'"
 
     def query_graph(self, entity: str) -> str:
         ent = (entity or "").strip()
         if not ent:
             return "조회할 엔티티를 입력하세요."
-        with self._shared_state():
-            matched_edges = [
-                f"🔗 {e['source']} ──[{e['relation']}]──> {e['target']}"
-                for e in self._graph_edges
-                if ent.lower() in e.get("source", "").lower() or ent.lower() in e.get("target", "").lower()
-            ]
-            node_info = self._graph_nodes.get(ent)
+        nodes, edges = self._store.get_graph()
+        matched_edges = [
+            f"🔗 {e['source']} ──[{e['relation']}]──> {e['target']}"
+            for e in edges
+            if ent.lower() in e.get("source", "").lower() or ent.lower() in e.get("target", "").lower()
+        ]
+        node_info = nodes.get(ent)
 
         res = []
         if node_info:
@@ -375,23 +329,23 @@ class MinosEngine:
     # --- 4. Episodic Memory & RAG Retrieval ---
     def record_interaction(self, user_content: str, assistant_content: str):
         now = time.time()
+        u_clean = clip_snippet(redact_secrets(user_content or ""), 2000)
+        a_clean = clip_snippet(redact_secrets(assistant_content or ""), 600)
         try:
-            with self._io_lock, InterProcessLock(self._lock_file):
-                with open(self._episodic_file, "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"timestamp": now, "role": "user", "content": user_content}, ensure_ascii=False) + "\n")
-                    f.write(json.dumps({"timestamp": now, "role": "assistant", "content": assistant_content}, ensure_ascii=False) + "\n")
+            self._store.add_episode(now, "user", u_clean, session_id="", author_id="", trusted=True)
+            self._store.add_episode(now, "assistant", a_clean, session_id="", author_id="", trusted=True)
         except Exception as e:
             logger.error(f"Failed to record interaction: {e}")
 
         if self._chroma_collection:
             def bg_embed():
                 try:
-                    if should_index_content(user_content):
-                        emb = self._get_embedding(user_content, timeout=EMBEDDING_INDEX_TIMEOUT)
+                    if should_index_content(u_clean):
+                        emb = self._get_embedding(u_clean, timeout=EMBEDDING_INDEX_TIMEOUT)
                         if emb:
                             self._chroma_collection.add(
                                 embeddings=[emb],
-                                documents=[user_content],
+                                documents=[u_clean],
                                 metadatas=[{"role": "user", "timestamp": now}],
                                 ids=[f"u_{uuid.uuid4().hex}"]
                             )
@@ -409,7 +363,7 @@ class MinosEngine:
         timestamps: Dict[str, float] = {}
 
         bm25_ranked = []
-        for doc, ts in self._query_bm25(clean_q, n=top_k * 2):
+        for doc, ts in self._store.search(clean_q, limit=top_k * 2):
             bm25_ranked.append(doc)
             timestamps[doc] = max(ts, timestamps.get(doc, 0.0))
 
@@ -441,12 +395,10 @@ class MinosEngine:
     # --- 5. Unified System Prompt Generator ---
     def get_context_block(self, query: str = "") -> str:
         """Generate a complete XML/Markdown context block to inject into LLM system prompt."""
-        with self._shared_state():
-            pinned = list(self._pinned_memories)
-            projects = dict(self._projects)
-            nodes = dict(self._graph_nodes)
-            edges = list(self._graph_edges)
-            semantic = self._semantic_memory
+        pinned = self._store.list_pins()
+        projects = self._store.list_projects()
+        nodes, edges = self._store.get_graph()
+        semantic = self._store.get_semantic()
 
         sections = []
 
@@ -488,21 +440,18 @@ class MinosEngine:
         return "<minos-memory-context>\n" + "\n\n".join(sections) + "\n</minos-memory-context>"
 
     def get_memory_stats(self) -> Dict[str, Any]:
-        with self._shared_state():
-            stats = {
-                "storage_dir": self.storage_dir,
-                "vector_db": self._db_path,
-                "pins": len(self._pinned_memories),
-                "projects": len(self._projects),
-                "nodes": len(self._graph_nodes),
-                "edges": len(self._graph_edges),
-                "semantic_chars": len(self._semantic_memory),
-            }
-        episodic = 0
-        if os.path.exists(self._episodic_file):
-            with open(self._episodic_file, "r", encoding="utf-8") as f:
-                episodic = sum(1 for line in f if line.strip())
-        stats["episodic"] = episodic
+        nodes, edges = self._store.get_graph()
+        stats = {
+            "storage_dir": self.storage_dir,
+            "vector_db": self._db_path,
+            "pins": len(self._store.list_pins()),
+            "projects": len(self._store.list_projects()),
+            "nodes": len(nodes),
+            "edges": len(edges),
+            "semantic_chars": len(self._store.get_semantic()),
+            "episodic": self._store.count_episodes(),
+            "backend": "sqlite",
+        }
         try:
             stats["vectors"] = self._chroma_collection.count() if self._chroma_collection else 0
         except Exception:
@@ -523,13 +472,15 @@ class MinosEngine:
             except Exception:
                 pass
 
+            nodes, edges = self._store.get_graph()
+            pins = self._store.list_pins()
             lines = [
                 "🖥️ [시스템 상태 실측 결과]",
                 f"- 디스크 여유 공간: {free / (1024**3):.1f} GB / {total / (1024**3):.1f} GB ({(free/total)*100:.1f}% 여유)",
                 f"- 로컬 LLM 서버: {'🟢 온라인' if lms_ok else '🔴 오프라인'} ({self.lms_url})",
                 f"- 벡터 DB: {'🟢 연결됨' if self._chroma_collection else '🔴 미연결'}",
-                f"- 등록된 영구 핀: {len(self._pinned_memories)}개",
-                f"- 지식 그래프 엔티티: {len(self._graph_nodes)}개 (관계: {len(self._graph_edges)}개)"
+                f"- 등록된 영구 핀: {len(pins)}개",
+                f"- 지식 그래프 엔티티: {len(nodes)}개 (관계: {len(edges)}개)"
             ]
             if lms_models:
                 lines.append(f"- 로드 모델: {', '.join(lms_models)}")
@@ -659,74 +610,6 @@ class MinosEngine:
             return self._chroma_client.get_collection(name=LEGACY_COLLECTION_NAME)
         return self._chroma_client.get_or_create_collection(name=COLLECTION_NAME)
 
-    @staticmethod
-    def _mtime(path: str):
-        try:
-            return os.stat(path).st_mtime_ns
-        except OSError:
-            return None
-
-    def _refresh_unlocked(self):
-        """Reload files that another process changed since we last read or wrote them."""
-        mtime = self._mtime(self._memory_file)
-        if mtime != self._memory_mtime:
-            self._load_memory_unlocked()
-            self._memory_mtime = mtime
-        mtime = self._mtime(self._graph_file)
-        if mtime != self._graph_mtime:
-            self._load_graph_unlocked()
-            self._graph_mtime = mtime
-
-    def _load_memory_unlocked(self):
-        self._semantic_memory = ""
-        self._working_memory = []
-        self._pinned_memories = []
-        self._projects = {}
-        if os.path.exists(self._memory_file):
-            try:
-                with open(self._memory_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self._semantic_memory = data.get("semantic_memory", "")
-                    self._working_memory = list(data.get("working_memory", []))
-                    self._pinned_memories = list(data.get("pinned_memories", []))
-                    self._projects = dict(data.get("projects", {}))
-            except Exception as e:
-                logger.error(f"Failed to load memory file: {e}")
-
-    def _save_memory_unlocked(self):
-        try:
-            atomic_write_json(self._memory_file, {
-                "semantic_memory": self._semantic_memory,
-                "working_memory": self._working_memory,
-                "pinned_memories": self._pinned_memories,
-                "projects": self._projects
-            })
-            self._memory_mtime = self._mtime(self._memory_file)
-        except Exception as e:
-            logger.error(f"Failed to save memory file: {e}")
-
-    def _load_graph_unlocked(self):
-        self._graph_nodes = {}
-        self._graph_edges = []
-        if os.path.exists(self._graph_file):
-            try:
-                with open(self._graph_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self._graph_nodes = dict(data.get("nodes", {}))
-                    self._graph_edges = list(data.get("edges", []))
-            except Exception as e:
-                logger.error(f"Failed to load graph file: {e}")
-
-    def _save_graph_unlocked(self):
-        try:
-            atomic_write_json(self._graph_file, {
-                "nodes": self._graph_nodes,
-                "edges": self._graph_edges
-            })
-            self._graph_mtime = self._mtime(self._graph_file)
-        except Exception as e:
-            logger.error(f"Failed to save graph file: {e}")
-
     def _get_embedding(self, content: str, timeout: float = EMBEDDING_HTTP_TIMEOUT) -> Optional[List[float]]:
         clean = content.strip()
         if not clean:
@@ -754,55 +637,6 @@ class MinosEngine:
                 pass
         return None
 
-    def _query_bm25(self, query: str, n: int = 3) -> List[Tuple[str, float]]:
-        """Return up to n (document, timestamp) pairs that actually share tokens with the query."""
-        if not os.path.exists(self._episodic_file) or not BM25_CLASS:
-            return []
-        try:
-            mtime = os.path.getmtime(self._episodic_file)
-            if self._bm25_model is None or mtime > self._bm25_last_mtime:
-                window = deque(maxlen=BM25_MAX_SLIDING_WINDOW)
-                with open(self._episodic_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        try:
-                            d = json.loads(line)
-                            c = d.get("content", "").strip()
-                            if len(c) >= 5:
-                                window.append((c, float(d.get("timestamp") or 0.0)))
-                        except Exception:
-                            continue
-                # Keep only the newest copy of repeated messages
-                latest: Dict[str, float] = {}
-                for c, ts in window:
-                    latest[c] = max(ts, latest.get(c, 0.0))
-                self._bm25_corpus = list(latest.keys())
-                self._bm25_timestamps = [latest[c] for c in self._bm25_corpus]
-                tokenized = [tokenize_korean_bigram(doc) for doc in self._bm25_corpus]
-                self._bm25_token_sets = [set(t) for t in tokenized]
-                self._bm25_model = BM25_CLASS(tokenized) if tokenized else None
-                self._bm25_last_mtime = mtime
-
-            if not self._bm25_model or not self._bm25_corpus:
-                return []
-
-            tokens = tokenize_korean_bigram(query)
-            q_set = set(tokens)
-            if not q_set:
-                return []
-            scores = self._bm25_model.get_scores(tokens)
-            ranked = []
-            for i, score in enumerate(scores):
-                # BM25Plus gives every doc a positive floor score once any query token
-                # exists in the corpus, so score > 0 alone does not mean "relevant".
-                overlap = len(q_set & self._bm25_token_sets[i]) / len(q_set)
-                if overlap >= BM25_MIN_TOKEN_OVERLAP:
-                    ranked.append((score, i))
-            ranked.sort(key=lambda x: x[0], reverse=True)
-            return [(self._bm25_corpus[i], self._bm25_timestamps[i]) for _, i in ranked[:n]]
-        except Exception as e:
-            logger.debug(f"BM25 search failed: {e}")
-            return []
-
 
 # --- Standalone Verification Entry Point ---
 if __name__ == "__main__":
@@ -810,7 +644,7 @@ if __name__ == "__main__":
     if sys.stdout and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
 
-    print("=== Minos Engine v4.2 Standalone Verification ===")
+    print("=== Minos Engine v5.1 Standalone Verification ===")
     engine = MinosEngine(storage_dir="./test_minos_data")
     print(engine.pin_fact("사용자 호칭: 형님"))
     print(engine.add_relation("형님", "관심종목", "TIGER 반도체TOP10"))
