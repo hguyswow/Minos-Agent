@@ -1,0 +1,18 @@
+flask
+psutil
+requests
+gputil
+pyttsx3
+chromadb
+rank_bm25
+SpeechRecognition
+faster-whisper
+pydub
+imageio-ffmpeg
+duckduckgo-search
+playwright
+beautifulsoup4
+edge-tts
+mutagen
+pycaw; sys_platform == 'win32'
+comtypes; sys_platform == 'win32'

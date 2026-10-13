@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minos AI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            min-width: 260px;
+            max-width: 600px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .sidebar > * {
+            flex-shrink: 0;
+        }
+
+        .resizer {
+            width: 6px;
+            background-color: var(--bg-color);
+            cursor: col-resize;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .resizer:hover, .resizer:active {
+            background-color: var(--accent);
+        }
+
+        .main-chat {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .header {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 5px;
+            letter-spacing: -0.5px;
+        }
+
+        .panel {
+            background-color: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border);
+        }
+        
+        .panel h3 {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-top: 1px solid var(--border);
+        }
+        .list-item:first-child { border-top: none; }
+
+        .toggle-btn {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+        .toggle-btn.on { background-color: var(--success); }
+        .toggle-btn.auto { background-color: var(--warning); }
+
+        .chat-container {
+            flex-grow: 1;
+            background-color: var(--panel-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            color: var(--accent);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .modal-close:hover { color: white; }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .menu-btn {
+            background-color: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            color: #94a3b8;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .menu-btn:hover {
+            background-color: rgba(255,255,255,0.08);
+            color: white;
+            border-color: #475569;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px;
+            border-radius: 12px;
+            line-height: 1.5;
+            font-size: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .message-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user {
+            background-color: var(--accent);
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .assistant {
+            background-color: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .input-area {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"], input[type="password"] {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+            width: 100%;
+        }
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--accent);
+        }
+
+        .chat-input {
+            flex-grow: 1;
+            padding: 15px !important;
+            border-radius: 12px !important;
+            font-size: 16px !important;
+        }
+
+        button.send, button.save {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button.send { padding: 0 25px; border-radius: 12px; }
+        button.save { padding: 10px 15px; margin-top: 10px; width: 48%; }
+        button.delete { background-color: var(--danger); padding: 10px 15px; margin-top: 10px; width: 48%; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+        button.delete:hover { background-color: #dc2626; }
+        button.send:hover, button.save:hover { background-color: var(--accent-hover); }
+
+        .cmd-box {
+            background-color: #000;
+            border-left: 4px solid var(--warning);
+            padding: 15px;
+            margin-top: 10px;
+            font-family: monospace;
+            border-radius: 4px;
+        }
+        
+        .cmd-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .cmd-btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-yes { background-color: var(--success); color: white; }
+        .btn-no { background-color: var(--danger); color: white; }
+
+        .typing-indicator {
+            align-self: flex-start;
+            color: #94a3b8;
+            font-size: 14px;
+            font-style: italic;
+            display: none;
+            margin-top: 10px;
+        }
+
+        /* Tooltip style */
+        .tooltip-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            background-color: var(--accent);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 11px;
+            line-height: 16px;
+            cursor: help;
+            margin-left: 5px;
+            position: relative;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #334155;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 100;
+            bottom: 125%;
+            right: -10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 11px;
+            font-weight: normal;
+            line-height: 1.4;
+            text-transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 13px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #334155 transparent transparent transparent;
+        }
+
+        .tooltip-icon:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* 문의 팝업 모달 오버레이 */
+        #contact-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9000;
+            justify-content: center;
+            align-items: center;
+        }
+        #contact-modal-box {
+            background: #1e293b;
+            border: 1px solid var(--accent);
+            border-radius: 12px;
+            padding: 24px;
+            width: 320px;
+            max-width: 90vw;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            color: #e2e8f0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        #contact-modal-box .modal-close-x {
+            position: absolute;
+            top: 12px; right: 14px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #94a3b8;
+            background: none;
+            border: none;
+            line-height: 1;
+        }
+        #contact-modal-box .modal-close-x:hover { color: white; }
+
+        /* 스킬 툴팁 */
+        .skill-tooltip-wrap {
+            position: relative;
+            cursor: default;
+        }
+        .skill-tooltip-wrap .skill-desc-tip {
+            display: none;
+            position: absolute;
+            left: 0; top: 110%;
+            background: #0f172a;
+            color: #cbd5e1;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 7px 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            width: 240px;
+            z-index: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            white-space: normal;
+            pointer-events: none;
+        }
+        .skill-tooltip-wrap:hover .skill-desc-tip { display: block; }
+
+        /* Editor Modal Styles */
+        #modal-editor-content {
+            width: 95%;
+            max-width: 1000px;
+            height: 90vh;
+            max-height: 90vh;
+        }
+        .CodeMirror {
+            height: calc(100% - 20px);
+            border-radius: 8px;
+            font-family: Consolas, 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .editor-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        .edit-btn {
+            background-color: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 10px;
+            transition: all 0.2s;
+        }
+        .edit-btn:hover { background-color: var(--accent); color: white; }
+
+        .contact-tooltip::after {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* [신규 7단계] 게이지 그리드 및 위젯 레이아웃 스타일 */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .resource-item {
+            background: rgba(255, 255, 255, 0.015);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .resource-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        .resource-item.full-width {
+            grid-column: span 2;
+        }
+        .gauge-container {
+            position: relative;
+            width: 58px;
+            height: 58px;
+            margin-bottom: 5px;
+        }
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .gauge-track {
+            fill: none;
+            stroke: #2d3748;
+            stroke-width: 4.5;
+        }
+        .gauge-fill {
+            fill: none;
+            stroke: var(--accent);
+            stroke-width: 4.5;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+        .resource-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+        .resource-meta {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="header" style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span>🐙 Minos <span onclick="toggleLang()" id="lang-btn" style="cursor:pointer; font-size:11px; background:rgba(255,255,255,0.1); padding:3px 6px; border-radius:4px; margin-left:8px; vertical-align:middle;">🇰🇷 KR</span></span>
+            <span onclick="openContactModal()" style="font-size: 11px; font-weight: 400; color: #94a3b8; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;" title="클릭하여 프로젝트 정보 보기">
+                문의 / About
+            </span>
+
+            <!-- 문의 고정 모달 -->
+            <div id="contact-modal-overlay" onclick="closeContactModal(event)">
+                <div id="contact-modal-box">
+                    <button class="modal-close-x" onclick="closeContactModal()" title="닫기">✕</button>
+                    <div style="font-weight:700; color:var(--accent); font-size:15px; margin-bottom:10px;"
+                         data-ko="🐙 Minos 프로젝트 소개" data-en="🐙 About Minos Project">🐙 Minos 프로젝트 소개</div>
+                    <div style="color:#cbd5e1; margin-bottom:12px;"
+                         data-ko="무거운 OpenCLo·Hermes 에이전트의 단점을 극복하기 위해 제작되었으며, 로컬 LLM의 성능과 효율을 극대화하도록 특화 설계되었습니다."
+                         data-en="Created to overcome the shortcomings of heavy OpenClo and Hermes agents, and specifically designed to maximize the performance and efficiency of local LLMs.">
+                        무거운 OpenCLo·Hermes 에이전트의 단점을 극복하기 위해 제작되었으며, 로컬 LLM의 성능과 효율을 극대화하도록 특화 설계되었습니다.
+                    </div>
+                    <div style="margin-top:14px; text-align:right;">
+                        <button onclick="closeContactModal()" style="background:var(--accent); color:white; border:none; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:12px;"
+                                data-ko="닫기" data-en="Close">닫기</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h3>System Status & Resource Gauges</h3>
+            <div class="resource-grid">
+                <!-- CPU -->
+                <div class="resource-item">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 36 36">
+                            <path class="gauge-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="cpu-gauge" class="gauge-fill" stroke-dasharray="100, 100" stroke-dashoffset="100" stroke="#3b82f6" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div id="cpu-stat" class="gauge-text">0%</div>
+                    </div>
+                    <span class="resource-label">CPU</span>
+                </div>
+                <!-- RAM -->
+                <div class="resource-item">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 36 36">
+                            <path class="gauge-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="ram-gauge" class="gauge-fill" stroke-dasharray="100, 100" stroke-dashoffset="100" stroke="#a855f7" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div id="ram-stat" class="gauge-text">0%</div>
+                    </div>
+                    <span class="resource-label">RAM</span>
+                </div>
+                <!-- GPU -->
+                <div class="resource-item">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 36 36">
+                            <path class="gauge-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="gpu-gauge" class="gauge-fill" stroke-dasharray="100, 100" stroke-dashoffset="100" stroke="#10b981" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div id="gpu-stat" class="gauge-text">--%</div>
+                    </div>
+                    <span class="resource-label" style="color:#10b981;">GPU</span>
+                    <span id="gpu-temp-stat" class="resource-meta">--°C</span>
+                </div>
+                <!-- VRAM -->
+                <div class="resource-item">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" viewBox="0 0 36 36">
+                            <path class="gauge-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="vram-gauge" class="gauge-fill" stroke-dasharray="100, 100" stroke-dashoffset="100" stroke="#f59e0b" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div id="vram-stat" class="gauge-text">--%</div>
+                    </div>
+                    <span class="resource-label" style="color:#f59e0b;">VRAM</span>
+                    <span id="vram-usage-stat" class="resource-meta">--/-- MB</span>
+                </div>
+                <!-- Ollama Memory Context -->
+                <div class="resource-item full-width" style="flex-direction:row; justify-content:space-between; align-items:center; padding:10px 14px;">
+                    <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                        <span class="resource-label" style="color:var(--accent); font-size:11px; margin-top:0;">🧠 AI 대화 기억 점유율</span>
+                        <span id="ai-mem-meta" class="resource-meta" style="font-size:10px; margin-top:2px;">단기 기억: --/-- 개 (--%)</span>
+                    </div>
+                    <div class="gauge-container" style="width:42px; height:42px; margin-bottom:0;">
+                        <svg class="gauge-svg" viewBox="0 0 36 36">
+                            <path class="gauge-track" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="ai-mem-gauge" class="gauge-fill" stroke-dasharray="100, 100" stroke-dashoffset="100" stroke="var(--accent)" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div id="ai-mem-stat" class="gauge-text" style="font-size:9px;">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="menu-btn" onclick="openModal('modal-tentacles', '🐙 Tentacles (Daemon)')" title="백그라운드에서 상시 실행되며 모니터링/수집을 담당하는 데몬 에이전트">
+            <span data-ko="🐙 문어발 (백그라운드)" data-en="🐙 Tentacles (Daemon)">🐙 Tentacles (Daemon)</span>
+            <span>▶</span>
+        </button>
+
+        <button class="menu-btn" onclick="openModal('modal-factory', '⚙️ 문어발 제작소 (Tentacle Factory)')" title="코딩 없이 클릭만으로 맞춤형 수집 문어발 에이전트를 실시간 생성하여 즉시 가동" style="border-color: var(--success); background: rgba(16, 185, 129, 0.03);">
+            <span data-ko="⚙️ 문어발 제작소" data-en="⚙️ Tentacle Factory" style="color: var(--success); font-weight: bold;">⚙️ 문어발 제작소 (Factory)</span>
+            <span style="color: var(--success);">▶</span>
+        </button>
+
+        <button class="menu-btn" onclick="openModal('modal-skills', '🛠️ Skills (Auto-Approve)')" title="사용자의 명령을 받아 즉시 실행하고 결과를 보고하는 액션 스킬">
+            <span data-ko="🛠️ 스킬 (명령 모듈)" data-en="🛠️ Skills (Auto-Approve)">🛠️ Skills (Auto-Approve)</span>
+            <span>▶</span>
+        </button>
+        
+        <button class="menu-btn" onclick="openModal('modal-configs', '⚙️ Tentacle Configs')" title="각 문어발과 스킬의 세부 설정(API 토큰, 감시 키워드 등) 관리">
+            <span data-ko="⚙️ 문어발 설정" data-en="⚙️ Tentacle Configs">⚙️ Tentacle Configs (설정)</span>
+            <span>▶</span>
+        </button>
+        
+        <button class="menu-btn" onclick="openModal('modal-env', '📦 Environment Setup')" title="파이썬 패키지 설치 및 런타임 환경 상태 확인">
+            <span>📦 Environment Setup</span>
+            <span>▶</span>
+        </button>
+
+        <button class="menu-btn" onclick="openModal('modal-tts', '🎙️ 음성 입/출력 (Voice)')" title="TTS(음성 출력) 엔진 및 STT(음성 인식) 옵션 설정">
+            <span>🎙️ 음성 입/출력 (Voice)</span>
+            <span>▶</span>
+        </button>
+        
+        <div class="panel" style="border-color: var(--danger);">
+            <h3 style="color: var(--danger);">Error Logs</h3>
+            <div id="error-list" style="font-size:12px; color:#ef4444; word-break:break-all;">
+                No errors detected.
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top:auto;">
+            <h3 style="color: var(--accent); margin-bottom: 5px; font-size: 13px;">
+                <span class="tooltip-icon">❓
+                    <span class="tooltip-text">
+                        <b>[텔레그램 연동 가이드]</b><br>
+                        1. 텔레그램 앱에서 <b>@BotFather</b> 검색<br>
+                        2. <b>/newbot</b> 명령어를 치고 봇 생성<br>
+                        3. 발급받은 <b>HTTP API Token</b>을 아래에 복사/붙여넣기<br>
+                        4. <b>저장</b> 후 대시보드를 재시작하면 텔레그램으로 대화 가능!
+                    </span>
+                </span>
+                TELEGRAM CONFIG
+            </h3>
+            {% if has_token %}
+            <div id="token-status-indicator" style="color: var(--success); font-size: 11px; margin-bottom: 8px;">✅ 현재 토큰 저장되어 있음</div>
+            {% else %}
+            <div id="token-status-indicator" style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">❌ 토큰 없음 (입력 필요)</div>
+            {% endif %}
+            <div style="margin-top:10px;">
+                <input type="password" id="tg-token" placeholder="새로운 Token 입력...">
+                <div style="display: flex; justify-content: space-between;">
+                    <button class="save" onclick="saveConfig()">💾 저장</button>
+                    <button class="delete" onclick="deleteConfig()">🗑️ 초기화</button>
+                </div>
+            </div>
+            <div id="config-status" style="color:var(--success); font-size:11px; margin-top:5px; text-align:center; display:none;">저장되었습니다!</div>
+        </div>
+    </div>
+
+    <!-- Drag Handle -->
+    <div class="resizer" id="resizer"></div>
+
+    <div class="main-chat">
+        <div class="chat-container" id="chat-container">
+            <!-- Messages go here -->
+        </div>
+        <div class="typing-indicator" id="typing" data-ko="알쫑이가 답변을 생성 중입니다... ✍️" data-en="Aljjongi is typing... ✍️">알쫑이가 답변을 생성 중입니다... ✍️</div>
+        
+        <div class="input-area">
+            <button class="mic-btn" id="mic-btn" onclick="toggleMic()" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 10px; color: #94a3b8; transition: color 0.3s;">🎙️</button>
+            <input type="text" class="chat-input" id="user-input" autocomplete="off" onkeypress="handleEnter(event)" placeholder="알쫑이에게 명령을 내리세요..." data-ko="알쫑이에게 명령을 내리세요..." data-en="Give a command to Aljjongi...">
+            <button class="send" onclick="sendMessage()" data-ko="전송" data-en="Send">전송</button>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="modal-title">Title</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Tentacles Modal -->
+                <div id="modal-tentacles" style="display:none;">
+                    <div id="tentacle-list">
+                        <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Skills Modal -->
+                <div id="modal-skills" style="display:none;">
+                    <div id="skill-list">
+                        <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Configs Modal -->
+                <div id="modal-configs" style="display:none;">
+                    <div id="config-list">
+                        <div style="text-align:center; color:#64748b; font-size:12px;">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- GUI Config Editor Modal -->
+                <div id="modal-gui-editor" style="display:none;">
+                    <div id="gui-form-container" style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                        <!-- Forms injected here -->
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                        <span id="gui-status" style="color:var(--success); font-size:12px; margin-right:15px; align-self:center; display:none;">저장되었습니다!</span>
+                        <button class="save" onclick="saveGuiConfig()" style="padding: 8px 20px;">저장 (Save)</button>
+                    </div>
+                </div>
+                
+                <!-- Environment Modal -->
+                <div id="modal-env" style="display:none;">
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+                        <div style="margin-bottom: 15px; color: var(--warning); background: rgba(245,158,11,0.1); padding: 15px; border-radius: 8px; border: 1px solid rgba(245,158,11,0.2);">
+                            <div style="font-weight:bold; font-size:14px; margin-bottom:8px;">⚠️ 타 PC 구동 조건 3가지</div>
+                            1. Python 3+ 설치 완료<br>
+                            2. Ollama 설치 및 구동 중<br>
+                            3. AI 모델 다운로드 완료
+                        </div>
+                        <div style="color: #94a3b8; font-style: italic; margin-bottom: 15px; padding: 0 5px;">
+                            ※ 처음 빈 컴퓨터에 설치하실 때는 동봉된 <b>Setup-Environment.bat</b>을 실행하세요.
+                        </div>
+                        <button class="save" onclick="pullModel('nomic-embed-text')" style="width: 100%; font-size: 13px; padding: 12px;">☁️ 메모리 모델(nomic) Pull</button>
+                        <div id="pull-status" style="color:var(--success); font-size:13px; margin-top:10px; text-align:center; display:none;">요청 완료!</div>
+                    </div>
+                </div>
+
+                <!-- Tentacle Factory Modal [신규 6단계] -->
+                <div id="modal-factory" style="display:none;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6; display: flex; flex-direction: column; gap: 12px;">
+                        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 12px; border-radius: 8px; color: #93c5fd; margin-bottom: 5px;">
+                            💡 <b>BeautifulSoup 크롤러 자동 빌더</b><br>
+                            원하는 웹사이트 URL과 HTML CSS Selector를 입력하면 AI가 독립적으로 주기 구동하는 전용 수집 문어발 에이전트를 실시간 컴파일하여 생성합니다.
+                        </div>
+                        
+                        <div>
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">📁 문어발 고유 이름 (영문)</label>
+                            <input type="text" id="fac-filename" placeholder="예: rtx_5090_tracker" style="background-color: var(--bg-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%; box-sizing: border-box;">
+                            <span style="font-size:10px; color:#64748b;">* '_tentacle.py' 형태로 저장됩니다.</span>
+                        </div>
+                        
+                        <div>
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">🔗 대상 웹 주소 (URL)</label>
+                            <input type="text" id="fac-url" placeholder="https://example.com/deals" style="background-color: var(--bg-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%; box-sizing: border-box;">
+                        </div>
+                        
+                        <div>
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">🎯 HTML CSS Selector</label>
+                            <input type="text" id="fac-selector" placeholder="div.deal-item > a.title" style="background-color: var(--bg-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%; box-sizing: border-box;">
+                            <span style="font-size:10px; color:#64748b;">* 크롤러가 텍스트를 추출할 정확한 HTML Selector를 입력하세요.</span>
+                        </div>
+                        
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 1;">
+                                <label style="display:block; margin-bottom:4px; font-weight:600;">🔔 알림 조건 조건식</label>
+                                <select id="fac-alert-threshold" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%;">
+                                    <option value="changed">🔄 사이트 내용에 변화가 있을 때만</option>
+                                    <option value="contains">🎯 특정 키워드가 포함되어 있을 때만</option>
+                                    <option value="always">📈 수집될 때마다 항상 알림</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="display:block; margin-bottom:4px; font-weight:600;">⏱️ 감시 실행 주기</label>
+                                <select id="fac-interval" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%;">
+                                    <option value="15">15분마다 실행</option>
+                                    <option value="30">30분마다 실행</option>
+                                    <option value="60" selected>1시간마다 실행</option>
+                                    <option value="180">3시간마다 실행</option>
+                                    <option value="720">12시간마다 실행</option>
+                                    <option value="1440">하루(24시간)마다 실행</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div id="fac-keyword-container" style="display: none;">
+                            <label style="display:block; margin-bottom:4px; font-weight:600;">🔑 감시할 타겟 키워드</label>
+                            <input type="text" id="fac-keyword" placeholder="예: 특가, 5090" style="background-color: var(--bg-color); border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%; box-sizing: border-box;">
+                        </div>
+                        
+                        <div style="border-top:1px solid var(--border); margin: 10px 0;"></div>
+                        
+                        <button onclick="createCustomTentacle()" style="background-color: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 14px; transition: background 0.2s;">
+                            🚀 자율 문어발 컴파일 및 제작하기
+                        </button>
+                        <div id="fac-status" style="color:var(--success); font-size:12px; margin-top:8px; text-align:center; display:none; font-weight:bold;">문어발이 성공적으로 생성되었습니다!</div>
+                    </div>
+                </div>
+
+                <!-- TTS Modal -->
+                <div id="modal-tts" style="display:none;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🔊 알쫑이 목소리 출력 (TTS)</span>
+                            <label class="switch">
+                                <input type="checkbox" id="tts-enabled" onchange="saveTTSConfig()">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label for="tts-rate" style="display:block; margin-bottom:5px;">말하기 속도 (<span id="tts-rate-val">180</span> wpm)</label>
+                            <input type="range" id="tts-rate" min="100" max="300" step="10" value="180" style="width:100%;" onchange="saveTTSConfig()" oninput="document.getElementById('tts-rate-val').innerText=this.value">
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <label for="tts-volume" style="display:block; margin-bottom:5px;">볼륨 (<span id="tts-volume-val">100</span>%)</label>
+                            <input type="range" id="tts-volume" min="0" max="1" step="0.1" value="1.0" style="width:100%;" onchange="saveTTSConfig()" oninput="document.getElementById('tts-volume-val').innerText=Math.round(this.value*100)">
+                        </div>
+                        <div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">📍 음성 출력 대상 (Destination)</span>
+                            <select id="tts-destination" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="local">대시보드 스피커 (PC)</option>
+                                <option value="telegram">텔레그램 음성 메시지</option>
+                                <option value="both">둘 다 (PC + 텔레그램)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 출력 엔진 (TTS)</span>
+                            <select id="tts-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="edge">고음질 AI (Edge Neural)</option>
+                                <option value="google">구글 어시스턴트 (Google TTS - 여성 기본)</option>
+                                <option value="pyttsx3">기본 기계음 (로컬 오프라인)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🗣️ 알쫑이 목소리 선택</span>
+                            <select id="tts-voice" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="ko-KR-SunHiNeural">SunHi (한국어 여성)</option>
+                                <option value="en-US-AriaNeural">Aria (English US 여성)</option>
+                                <option value="en-GB-LibbyNeural">Libby (English UK 여성)</option>
+                                <option value="en-US-JennyNeural">Jenny (English US 여성)</option>
+                                <option value="ja-JP-NanamiNeural">Nanami (일본어 여성)</option>
+                                <option value="ko-KR-InJoonNeural">InJoon (한국어 남성)</option>
+                                <option value="ko-KR-HyunsuNeural">Hyunsu (한국어 남성)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+    <span style="font-size:14px; font-weight:bold; color:white;">🚫 불필요한 기호·괄호·이모지 스킵</span>
+    <label class="switch">
+        <input type="checkbox" id="tts-skip-symbols" onchange="saveTTSConfig()">
+        <span class="slider round"></span>
+    </label>
+</div>
+<div style="border-top: 1px solid var(--border); margin: 20px 0;"></div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">🎙️ 음성 인식 엔진 (STT)</span>
+                            <select id="stt-engine" onchange="saveTTSConfig()" style="background-color: var(--bg-color); color: var(--text-color); border: 1px solid var(--border); border-radius: 6px; padding: 5px;">
+                                <option value="google">Google 무료망 (빠름)</option>
+                                <option value="whisper">로컬 Whisper (보안)</option>
+                            </select>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0;">
+                            <span style="font-size:14px; font-weight:bold; color:white;">📱 텔레그램 음성 수신 허용</span>
+                            <label class="switch">
+                                <input type="checkbox" id="tg-voice-enabled" onchange="saveTTSConfig()" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="list-item" style="border:none; padding:10px 0; display: flex; justify-content: center;">
+                            <button onclick="stopTTS()" style="background-color: #ff4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%;">
+                                ⏹️ 음성 출력 즉시 중지
+                            </button>
+                        </div>
+                        <div id="tts-status" style="color:var(--success); font-size:11px; margin-top:15px; text-align:center; display:none;">설정이 저장되었습니다!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Code Editor Modal (Separate from sidebar modals) -->
+    <div class="modal-overlay" id="modal-editor-overlay" onclick="closeEditorModal(event)" style="z-index: 2000;">
+        <div class="modal-content" id="modal-editor-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="editor-title">📝 Code Editor</h2>
+                <button class="modal-close" onclick="closeEditorModal(event)">&times;</button>
+            </div>
+            <div class="modal-body" style="flex-grow: 1; display: flex; flex-direction: column;">
+                <div style="flex-grow: 1; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+                    <textarea id="code-editor"></textarea>
+                </div>
+                <div class="editor-footer">
+                    <span id="editor-status" style="color:var(--success); font-size:12px; margin-right: 15px; align-self: center; display:none;">저장되었습니다!</span>
+                    <button class="save" onclick="saveEditorCode()" style="padding: 8px 20px;">저장 (Save)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        {% raw %}
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("JS Error: " + message + " at " + lineno + ":" + colno);
+            console.error("Global JS Error:", message, source, lineno, colno, error);
+            document.body.innerHTML += '<div style="color:red;z-index:9999;position:absolute;top:0;">' + message + '</div>';
+            return true;
+        };
+
+        let dashboardLang = localStorage.getItem('dashboard_lang') || 'ko';
+        
+        function toggleLang() {
+            dashboardLang = dashboardLang === 'ko' ? 'en' : 'ko';
+            localStorage.setItem('dashboard_lang', dashboardLang);
+            applyLang();
+        }
+        
+        function applyLang() {
+            const btn = document.getElementById('lang-btn');
+            if (btn) btn.innerText = dashboardLang === 'ko' ? '🇰🇷 KR' : '🇺🇸 EN';
+            
+            document.querySelectorAll('[data-ko]').forEach(el => {
+                if (el.tagName === 'INPUT' && el.type === 'text') {
+                    el.placeholder = el.getAttribute('data-' + dashboardLang);
+                } else {
+                    el.innerText = el.getAttribute('data-' + dashboardLang);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            applyLang();
+        });
+
+        let editorInstance = null;
+        let currentEditFile = { type: null, name: null };
+
+        function openEditorModal(type, name) {
+            document.getElementById('modal-editor-overlay').style.display = 'flex';
+            document.getElementById('editor-title').innerText = `📝 Editing: ${name}`;
+            document.getElementById('editor-status').style.display = 'none';
+            
+            if (!editorInstance) {
+                editorInstance = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+                    mode: "python",
+                    theme: "dracula",
+                    lineNumbers: true,
+                    indentUnit: 4,
+                    matchBrackets: true
+                });
+                editorInstance.setSize("100%", "100%");
+            }
+            
+            currentEditFile = { type, name };
+            editorInstance.setValue("Loading...");
+            
+            fetch(`/api/editor/read?type=${type}&name=${name}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) editorInstance.setValue("# Error: " + data.error);
+                    else {
+                        editorInstance.setValue(data.content);
+                        setTimeout(() => editorInstance.refresh(), 100);
+                    }
+                })
+                .catch(err => editorInstance.setValue("# Network error loading file"));
+        }
+
+        function closeEditorModal(e) {
+            if (e.target.id === 'modal-editor-overlay' || e.target.classList.contains('modal-close')) {
+                document.getElementById('modal-editor-overlay').style.display = 'none';
+            }
+        }
+
+        async function saveEditorCode() {
+            if(!currentEditFile.name) return;
+            
+            const content = editorInstance.getValue();
+            const btn = document.querySelector('.editor-footer .save');
+            btn.innerText = "저장 중...";
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch('/api/editor/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: currentEditFile.type,
+                        name: currentEditFile.name,
+                        content: content
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.success) {
+                    const status = document.getElementById('editor-status');
+                    status.style.display = 'inline';
+                    setTimeout(() => status.style.display = 'none', 3000);
+                } else {
+                    alert("저장 실패: " + data.error);
+                }
+            } catch (err) {
+                alert("저장 중 오류가 발생했습니다.");
+            } finally {
+                btn.innerText = "저장 (Save)";
+                btn.disabled = false;
+            }
+        }
+        // --- Sidebar Resize Logic ---
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.querySelector('.sidebar');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.style.cursor = 'col-resize';
+            // Disable text selection while dragging
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            // Min & Max bounds
+            if (newWidth < 260) newWidth = 260;
+            if (newWidth > 600) newWidth = 600;
+            sidebar.style.width = newWidth + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = 'auto';
+            }
+        });
+        
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleMic() {
+            const micBtn = document.getElementById('mic-btn');
+            
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    
+                    mediaRecorder.onstop = async () => {
+                        micBtn.style.color = '#94a3b8';
+                        micBtn.classList.remove('recording');
+                        micBtn.innerText = "🎙️";
+                        
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob, 'recording.webm');
+                        
+                        // 로딩 표시기 켜기
+                        const typing = document.getElementById('typing');
+                        typing.innerText = "알쫑이가 음성을 텍스트로 변환하고 답변을 생성 중입니다... ✍️";
+                        typing.style.display = 'block';
+                        
+                        try {
+                            const response = await fetch('/api/chat/voice', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            if(!response.ok) {
+                                const err = await response.json();
+                                alert("음성 처리 실패: " + err.error);
+                                typing.style.display = 'none';
+                                return;
+                            }
+                            
+                            const reader = response.body.getReader();
+                            const decoder = new TextDecoder('utf-8');
+                            let currentMessageDiv = null;
+                            let currentContent = "";
+                            
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                
+                                const lines = decoder.decode(value).split('n');
+                                for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                        try {
+                                            const data = JSON.parse(line.substring(6));
+                                            
+                                            if (data.status === 'user_text') {
+                                                addMessage("user", "🎙️ " + data.content);
+                                            } else if (data.status === 'chunk') {
+                                                if (!currentMessageDiv) {
+                                                    typing.style.display = 'none';
+                                                    currentMessageDiv = addMessage('assistant', '');
+                                                }
+                                                currentContent += data.content;
+                                                const md_content = currentContent.replace(/<CMD>(.*?)<\/CMD>/g, '<div class="cmd-block">$1</div>');
+                                                currentMessageDiv.querySelector('.message-content').innerHTML = marked.parse(md_content);
+                                                const container = document.getElementById('chat-container');
+                                                container.scrollTop = container.scrollHeight;
+                                            } else if (data.status === 'error') {
+                                                typing.style.display = 'none';
+                                                addMessage('assistant', '⚠️ 오류: ' + data.content);
+                                            }
+                                        } catch (e) { console.error('Parse error:', e, line); }
+                                    }
+                                }
+                            }
+                            typing.style.display = 'none';
+                            
+                        } catch (error) {
+                            console.error('Error processing audio:', error);
+                            typing.style.display = 'none';
+                            alert('음성 전송 중 오류가 발생했습니다.');
+                        }
+                    };
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    micBtn.style.color = 'var(--danger)';
+                    micBtn.innerText = "🛑";
+                    
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    alert('마이크 접근 권한이 없거나 마이크를 사용할 수 없습니다.');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+        function openModal(targetId, title) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-tentacles').style.display = 'none';
+            document.getElementById('modal-skills').style.display = 'none';
+            document.getElementById('modal-configs').style.display = 'none';
+            document.getElementById('modal-env').style.display = 'none';
+            document.getElementById('modal-tts').style.display = 'none';
+            const mge = document.getElementById('modal-gui-editor');
+            if(mge) mge.style.display = 'none';
+            
+            document.getElementById(targetId).style.display = 'block';
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.id === 'modal-overlay' || event.currentTarget.className === 'modal-close') {
+                document.getElementById('modal-overlay').style.display = 'none';
+            }
+        }
+
+        async function fetchConfigs() {
+            try {
+                const res = await fetch('/api/config_list');
+                const configs = await res.json();
+                
+                const list = document.getElementById('config-list');
+                list.innerHTML = '';
+                
+                if(configs.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; color:#64748b; font-size:12px;">No config files found.</div>';
+                    return;
+                }
+                
+                configs.forEach(conf => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    div.innerHTML = `
+                        <span style="font-size:13px; flex-grow:1;">${conf}</span>
+                        <div>
+                            <button class="edit-btn" style="color:#10b981; border-color:#10b981;" onclick="openGuiConfig('${conf}')">⚙️ Easy</button>
+                            <button class="edit-btn" onclick="openEditorModal('config', '${conf}')">💻 Code</button>
+                            <button class="edit-btn" style="color:#ef4444; border-color:#ef4444;" onclick="resetConfig('${conf}')">🔄 Reset</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch(e) {
+                console.error("Failed to load configs", e);
+            }
+        }
+        
+        let currentGuiConfig = null;
+        let guiConfigData = null;
+
+        async function resetConfig(confName) {
+            if(!confirm("해당 설정 파일을 기본값으로 초기화하시겠습니까?")) return;
+            try {
+                const res = await fetch('/api/config_reset', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: confName})
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert("초기화되었습니다.");
+                } else {
+                    alert("오류: " + data.error);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function openGuiConfig(confName) {
+            currentGuiConfig = confName;
+            openModal('modal-gui-editor', '⚙️ 간편 설정: ' + confName);
+            const container = document.getElementById('gui-form-container');
+            container.innerHTML = '<div style="text-align:center;">Loading...</div>';
+            
+            try {
+                const res = await fetch(`/api/editor/read?type=config&name=${confName}`);
+                const data = await res.json();
+                if(data.error) {
+                    container.innerHTML = '<div style="color:var(--danger)">Error loading config</div>';
+                    return;
+                }
+                
+                guiConfigData = JSON.parse(data.content);
+                renderGuiForm(confName, guiConfigData, container);
+                
+            } catch(e) {
+                container.innerHTML = '<div style="color:var(--warning)">JSON 파싱 오류가 있습니다.<br>전문가 모드(💻 Code)에서 문법 오류를 먼저 수정해 주세요.</div>';
+            }
+        }
+
+        function renderGuiForm(confName, data, container) {
+            let html = '';
+            const inp = (id, label, val, ph='', hint='', type='text') => `
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">${label}</label>
+                    <input type="${type}" id="${id}" value="${val}" placeholder="${ph}" style="width:100%; box-sizing:border-box;">
+                    ${hint ? `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">${hint}</div>` : ''}
+                </div>`;
+            const toggle = (id, label, checked) => `
+                <div class="list-item" style="border:none; padding:10px 0;">
+                    <span style="font-weight:bold; color:white;">${label}</span>
+                    <label class="switch"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span class="slider round"></span></label>
+                </div>`;
+            const sel = (id, label, opts, cur) => `
+                <div style="margin-bottom:15px;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:white;">${label}</label>
+                    <select id="${id}" style="width:100%; padding:10px; background:var(--panel-bg); color:white; border:1px solid var(--border); border-radius:6px;">
+                        ${opts.map(o => `<option value="${o.v}" ${cur===o.v?'selected':''}>${o.t}</option>`).join('')}
+                    </select>
+                </div>`;
+
+            if (confName === 'weather_config.json') {
+                html += inp('gui-w-city', '📍 도시 (영문)', data.city||'Seoul', 'Seoul', '영문 도시명 (예: Seoul, Busan, Tokyo)');
+                html += inp('gui-w-lat', '위도 (Latitude)', data.latitude||37.5665, '37.5665');
+                html += inp('gui-w-lng', '경도 (Longitude)', data.longitude||126.9780, '126.9780', '네이버지도에서 좌표 확인 가능');
+                html += inp('gui-w-interval', '⏱️ 알림 간격 (시간)', data.alert_interval_hours||3, '3', '몇 시간마다 날씨를 알릴지 설정');
+                html += sel('gui-w-lang', '🌐 언어', [{v:'ko',t:'한국어'},{v:'en',t:'English'}], data.language||'ko');
+                html += toggle('gui-w-enabled', '✅ 날씨 알림 활성화', data.enabled!==false);
+            } else if (confName === 'stock_config.json') {
+                html += inp('gui-s-code', '📈 종목 코드', data.stock_code||'396650', '396650', '네이버 금융 종목 코드');
+                html += inp('gui-s-name', '종목 이름', data.stock_name||'', 'TIGER Fn반도체TOP10');
+                html += inp('gui-s-threshold', '📊 알림 임계값 (%)', data.alert_threshold_percent||1.0, '1.0', '이 등락률 이상일 때만 알림 (예: 1.0 = 1%)');
+                html += inp('gui-s-interval', '⏱️ 확인 주기 (분)', data.check_interval_minutes||60, '60');
+                html += toggle('gui-s-rise', '📈 상승 알림', data.alert_on_rise!==false);
+                html += toggle('gui-s-fall', '📉 하락 알림', data.alert_on_fall!==false);
+                html += toggle('gui-s-enabled', '✅ 주식 알림 활성화', data.enabled!==false);
+            } else if (confName === 'daily_digest_config.json') {
+                html += inp('gui-d-hour', '⏰ 발송 시각 (시)', data.send_hour??8, '8', '0~23 사이 숫자 입력');
+                html += inp('gui-d-minute', '발송 시각 (분)', data.send_minute??0, '0', '0~59 사이 숫자 입력');
+                html += inp('gui-d-city', '📍 날씨 도시 (영문)', data.city||'Seoul', 'Seoul');
+                html += inp('gui-d-news', '📰 뉴스 개수', data.news_count||3, '3', '보낼 뉴스 개수 (1~10)');
+                html += inp('gui-d-stock', '📈 종목 코드', data.stock_code||'396650', '396650');
+                html += toggle('gui-d-weather', '🌤 날씨 포함', data.include_weather!==false);
+                html += toggle('gui-d-news-t', '📰 뉴스 포함', data.include_news!==false);
+                html += toggle('gui-d-stock-t', '📈 주식 포함', data.include_stock!==false);
+                html += toggle('gui-d-enabled', '✅ 다이제스트 활성화', data.enabled!==false);
+            } else if (confName === 'morning_brief_config.json') {
+                html += inp('gui-mb-rss', '📡 RSS 피드 URL', data.rss_url||'', 'https://news.google.com/rss/...', '구글뉴스 RSS URL을 붙여넣으세요');
+                html += inp('gui-mb-count', '📰 뉴스 개수', data.news_count||5, '5', '최대 10개 권장');
+                html += inp('gui-mb-hour', '⏰ 발송 시각 (시)', data.send_hour??7, '7');
+                html += inp('gui-mb-minute', '발송 시각 (분)', data.send_minute??30, '30');
+                html += toggle('gui-mb-dedup', '🔄 중복 방지', data.dedup_enabled!==false);
+                html += toggle('gui-mb-enabled', '✅ 뉴스 브리핑 활성화', data.enabled!==false);
+            } else if (confName === 'keyword_config.json') {
+                const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
+                html += inp('gui-keyword-list', '🔍 추적 키워드', kws, 'RTX 5090, 특가, LLM', '쉼표(,)로 구분');
+            } else if (confName === 'email_config.json') {
+                const email = data.email || '';
+                const pwd = data.password || '';
+                const imap = data.imap_server || 'imap.gmail.com';
+                const kws = Array.isArray(data.keywords) ? data.keywords.join(', ') : '';
+                html += inp('gui-email-addr', '📧 이메일 계정', email, 'you@gmail.com');
+                html += inp('gui-email-pwd', '🔑 앱 비밀번호', pwd, '', '', 'password');
+                html += inp('gui-email-imap', '🖥️ IMAP 서버', imap, 'imap.gmail.com');
+                html += inp('gui-email-kws', '🔍 감시 키워드', kws, '결제, 청구, 중요', '쉼표(,)로 구분');
+            } else {
+                html = `<div style="color:var(--warning); padding:10px;">이 설정 파일은 간편 설정 UI를 아직 지원하지 않습니다.<br>전문가 모드(💻 Code)를 이용해 주세요.</div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        // GUI 설정 데이터 수집 함수
+        function collectGuiData(confName) {
+            const v = id => document.getElementById(id);
+            const chk = id => v(id) ? v(id).checked : false;
+            const num = id => v(id) ? (parseFloat(v(id).value) || 0) : 0;
+            const str = id => v(id) ? v(id).value.trim() : '';
+            if (confName === 'weather_config.json') {
+                return { city: str('gui-w-city'), latitude: num('gui-w-lat'), longitude: num('gui-w-lng'),
+                         alert_interval_hours: num('gui-w-interval'), language: str('gui-w-lang'), enabled: chk('gui-w-enabled') };
+            } else if (confName === 'stock_config.json') {
+                return { stock_code: str('gui-s-code'), stock_name: str('gui-s-name'),
+                         alert_threshold_percent: num('gui-s-threshold'), check_interval_minutes: num('gui-s-interval'),
+                         alert_on_rise: chk('gui-s-rise'), alert_on_fall: chk('gui-s-fall'), enabled: chk('gui-s-enabled') };
+            } else if (confName === 'daily_digest_config.json') {
+                return { send_hour: num('gui-d-hour'), send_minute: num('gui-d-minute'), city: str('gui-d-city'),
+                         news_count: num('gui-d-news'), stock_code: str('gui-d-stock'),
+                         include_weather: chk('gui-d-weather'), include_news: chk('gui-d-news-t'),
+                         include_stock: chk('gui-d-stock-t'), enabled: chk('gui-d-enabled') };
+            } else if (confName === 'morning_brief_config.json') {
+                return { rss_url: str('gui-mb-rss'), news_count: num('gui-mb-count'),
+                         send_hour: num('gui-mb-hour'), send_minute: num('gui-mb-minute'),
+                         dedup_enabled: chk('gui-mb-dedup'), enabled: chk('gui-mb-enabled') };
+            } else if (confName === 'keyword_config.json') {
+                const k_str = str('gui-keyword-list');
+                return { keywords: k_str.split(',').map(s=>s.trim()).filter(s=>s) };
+            } else if (confName === 'email_config.json') {
+                const k_str = str('gui-email-kws');
+                return { email: str('gui-email-addr'), password: str('gui-email-pwd'),
+                         imap_server: str('gui-email-imap'),
+                         keywords: k_str.split(',').map(s=>s.trim()).filter(s=>s) };
+            }
+            return null;
+        }
+
+        async function saveGuiConfig() {
+            if(!currentGuiConfig) return;
+            const collected = collectGuiData(currentGuiConfig);
+            const saveData = collected || guiConfigData;
+            try {
+                const res = await fetch('/api/editor/save', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        type: 'config',
+                        name: currentGuiConfig,
+                        content: JSON.stringify(saveData, null, 4)
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    const status = document.getElementById('gui-status');
+                    status.style.display = 'inline';
+                    setTimeout(() => status.style.display='none', 2500);
+                } else {
+                    alert("저장 실패: " + data.error);
+                }
+            } catch(e) {
+                alert("저장 중 오류가 발생했습니다.");
+            }
+        }
+        
+        // 문의 모달 함수
+        function openContactModal() {
+            document.getElementById('contact-modal-overlay').style.display = 'flex';
+            applyLang();
+        }
+        function closeContactModal(e) {
+            if (!e || e.target.id === 'contact-modal-overlay') {
+                document.getElementById('contact-modal-overlay').style.display = 'none';
+            }
+        }
+        // 클립보드 복사 헬퍼
+        function copyToClip(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerText;
+                btn.innerText = '✅';
+                btn.style.color = '#34d399';
+                setTimeout(() => { btn.innerText = orig; btn.style.color = '#93c5fd'; }, 1500);
+            }).catch(() => {
+                // 구형 브라우저 폴백
+                const ta = document.createElement('textarea');
+                ta.value = text; document.body.appendChild(ta);
+                ta.select(); document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.innerText = '✅'; setTimeout(() => { btn.innerText = '복사'; }, 1500);
+            });
+        }
+
+        // 스킬 설명 프리로드
+        window._skillDescs = {};
+        async function preloadSkillDescs() {
+            try {
+                const res = await fetch('/api/skill_descs');
+                window._skillDescs = await res.json();
+            } catch(e) { console.warn('skill_descs load failed:', e); }
+        }
+        preloadSkillDescs();
+
+        // 주기적 실행 대신 최초에 한 번만 로드
+        setTimeout(fetchConfigs, 1000);
+
+        // 토큰 로딩
+        async function fetchConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                if(data.telegram_token) {
+                    document.getElementById('tg-token').value = data.telegram_token;
+                }
+                if(data.tts_enabled !== undefined) document.getElementById('tts-enabled').checked = data.tts_enabled;
+                if(data.tts_rate !== undefined) {
+                    document.getElementById('tts-rate').value = data.tts_rate;
+                    document.getElementById('tts-rate-val').innerText = data.tts_rate;
+                }
+                if(data.tts_volume !== undefined) {
+                    document.getElementById('tts-volume').value = data.tts_volume;
+                    document.getElementById('tts-volume-val').innerText = Math.round(data.tts_volume * 100);
+                }
+                if(data.tts_engine) document.getElementById('tts-engine').value = data.tts_engine;
+                if(data.tts_voice) document.getElementById('tts-voice').value = data.tts_voice;
+                
+                if(data.stt_engine) document.getElementById('stt-engine').value = data.stt_engine;
+                if(data.tg_voice_enabled !== undefined) document.getElementById('tg-voice-enabled').checked = data.tg_voice_enabled;
+                if(data.tts_skip_symbols !== undefined) document.getElementById('tts-skip-symbols').checked = data.tts_skip_symbols;
+                if(data.tts_destination) document.getElementById('tts-destination').value = data.tts_destination;
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveTTSConfig() {
+            const enabled = document.getElementById('tts-enabled').checked;
+            const rate = document.getElementById('tts-rate').value;
+            const volume = document.getElementById('tts-volume').value;
+            const tts_engine = document.getElementById('tts-engine').value;
+            const tts_voice = document.getElementById('tts-voice').value;
+            const stt_engine = document.getElementById('stt-engine').value;
+            const tg_voice_enabled = document.getElementById('tg-voice-enabled').checked;
+            const tts_skip_symbols = document.getElementById('tts-skip-symbols').checked;
+            const tts_destination = document.getElementById('tts-destination').value;
+            
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        tts_enabled: enabled,
+                        tts_rate: parseInt(rate),
+                        tts_volume: parseFloat(volume),
+                        tts_engine: tts_engine,
+                        tts_voice: tts_voice,
+                        stt_engine: stt_engine,
+                        tg_voice_enabled: tg_voice_enabled,
+                        tts_skip_symbols: tts_skip_symbols,
+                        tts_destination: tts_destination
+                    })
+                });
+                const status = document.getElementById('tts-status');
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        async function stopTTS() {
+            try {
+                const res = await fetch('/api/tts/stop', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    const status = document.getElementById('tts-status');
+                    status.innerText = "🔇 음성 출력이 중지되었습니다.";
+                    status.style.display = 'block';
+                    setTimeout(() => { status.style.display = 'none'; status.innerText = "설정이 저장되었습니다!"; }, 2000);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // 토큰 저장
+        async function saveConfig() {
+            const token = document.getElementById('tg-token').value.trim();
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({telegram_token: token})
+                });
+                const status = document.getElementById('config-status');
+                status.innerText = '저장되었습니다!';
+                status.style.color = 'var(--success)';
+                status.style.display = 'block';
+                document.getElementById('token-status-indicator').innerHTML = '✅ 현재 토큰 저장되어 있음';
+                document.getElementById('token-status-indicator').style.color = 'var(--success)';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        // 토큰 삭제
+        async function deleteConfig() {
+            try {
+                await fetch('/api/config/reset', { method: 'POST' });
+                document.getElementById('tg-token').value = '';
+                const status = document.getElementById('config-status');
+                status.innerText = '초기화되었습니다!';
+                status.style.color = 'var(--danger)';
+                status.style.display = 'block';
+                document.getElementById('token-status-indicator').innerHTML = '❌ 토큰 없음 (입력 필요)';
+                document.getElementById('token-status-indicator').style.color = '#94a3b8';
+                setTimeout(() => { status.style.display = 'none'; }, 2000);
+            } catch(e) { console.error(e); }
+        }
+
+        // 모델 Pull 요청
+        async function pullModel(modelName) {
+            try {
+                await fetch('/api/setup/pull_models', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({model: modelName})
+                });
+                const status = document.getElementById('pull-status');
+                status.style.display = 'block';
+                setTimeout(() => { status.style.display = 'none'; }, 3000);
+            } catch(e) { console.error(e); }
+        }
+
+        function updateGaugeOffset(gaugeId, percent) {
+            const gauge = document.getElementById(gaugeId);
+            if (!gauge) return;
+            const offset = 100 - Math.min(100, Math.max(0, percent));
+            gauge.setAttribute('stroke-dashoffset', offset);
+        }
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                // CPU 게이지
+                const cpuVal = parseFloat(data.cpu) || 0;
+                document.getElementById('cpu-stat').innerText = Math.round(cpuVal) + '%';
+                updateGaugeOffset('cpu-gauge', cpuVal);
+
+                // RAM 게이지
+                const ramVal = parseFloat(data.ram) || 0;
+                document.getElementById('ram-stat').innerText = Math.round(ramVal) + '%';
+                updateGaugeOffset('ram-gauge', ramVal);
+
+                // GPU 게이지
+                const gpuVal = parseFloat(data.gpu) || 0;
+                const gpuText = data.gpu === '--' ? '--%' : Math.round(gpuVal) + '%';
+                document.getElementById('gpu-stat').innerText = gpuText;
+                updateGaugeOffset('gpu-gauge', data.gpu === '--' ? 0 : gpuVal);
+                document.getElementById('gpu-temp-stat').innerText = data.gpu_temp === '--' ? '--°C' : data.gpu_temp + '°C';
+
+                // VRAM 게이지
+                const vramVal = parseFloat(data.vram) || 0;
+                const vramText = data.vram === '--' ? '--%' : Math.round(vramVal) + '%';
+                document.getElementById('vram-stat').innerText = vramText;
+                updateGaugeOffset('vram-gauge', data.vram === '--' ? 0 : vramVal);
+                
+                let vramMeta = '--/-- MB';
+                if (data.vram_used !== '--' && data.vram_total !== '--') {
+                    const usedGb = (parseFloat(data.vram_used) / 1024).toFixed(1);
+                    const totalGb = (parseFloat(data.vram_total) / 1024).toFixed(1);
+                    vramMeta = `${usedGb} / ${totalGb} GB`;
+                }
+                document.getElementById('vram-usage-stat').innerText = vramMeta;
+
+                // AI 기억 점유율 게이지
+                const memCount = data.memory_count || 0;
+                const memMax = data.memory_max || 20;
+                const memPercent = parseFloat(data.memory_percent) || 0;
+                
+                document.getElementById('ai-mem-stat').innerText = Math.round(memPercent) + '%';
+                updateGaugeOffset('ai-mem-gauge', memPercent);
+                document.getElementById('ai-mem-meta').innerText = `단기 기억: ${memCount}/${memMax} 개 (${Math.round(memPercent)}%)`;
+                
+                // 문어발 리스트
+                const tList = document.getElementById('tentacle-list');
+                tList.innerHTML = '';
+                data.tentacles.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    const btnClass = t.is_on ? 'toggle-btn on' : 'toggle-btn';
+                    const btnText = t.is_on ? 'ON' : 'OFF';
+                    div.innerHTML = `
+                        <span style="font-size:12px;">${t.name}</span>
+                        <div>
+                            <button class="edit-btn" onclick="openEditorModal('tentacle', '${t.name}')">📝 Edit</button>
+                            <button class="${btnClass}" onclick="toggleTentacle('${t.name}')">${btnText}</button>
+                        </div>
+                    `;
+                    tList.appendChild(div);
+                });
+
+                // 스킬 리스트
+                const sList = document.getElementById('skill-list');
+                sList.innerHTML = '';
+                data.skills.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    const btnClass = s.is_auto ? 'toggle-btn auto' : 'toggle-btn';
+                    const btnText = s.is_auto ? 'AUTO' : 'MANUAL';
+                    const desc = window._skillDescs ? (window._skillDescs[s.name] || '') : '';
+                    const tipHtml = desc ? `<span class="skill-desc-tip">${desc}</span>` : '';
+                    div.innerHTML = `
+                        <span class="skill-tooltip-wrap" style="font-size:12px;">${s.name}${tipHtml}</span>
+                        <div>
+                            <button class="edit-btn" onclick="openEditorModal('skill', '${s.name}')">📝 Edit</button>
+                            <button class="${btnClass}" onclick="toggleSkill('${s.name}')">${btnText}</button>
+                        </div>
+                    `;
+                    sList.appendChild(div);
+                });
+                
+                const eList = document.getElementById('error-list');
+                if(Object.keys(data.errors).length > 0) {
+                    eList.innerHTML = JSON.stringify(data.errors, null, 2).replace(/n/g, '<br>');
+                } else {
+                    eList.innerHTML = 'No errors detected. ✅';
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // <CMD>...</CMD> 블록을 채팅창에서 제거하는 헬퍼 함수
+        function stripCmd(text) {
+            // <CMD>...</CMD> 태그와 내용을 완전히 제거
+            return text.replace(/<CMD>[\s\S]*?<\/CMD>/g, '').replace(/\n{3,}/g, '\n\n').trim();
+        }
+
+        async function fetchMemory() {
+            try {
+                const res = await fetch('/api/memory');
+                const msgs = await res.json();
+                const container = document.getElementById('chat-container');
+                container.innerHTML = '';
+                msgs.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = `message ${m.role}`;
+                    // <CMD> 블록은 채팅창에서 숨김 처리
+                    div.innerText = stripCmd(m.content);
+                    if (div.innerText.trim()) container.appendChild(div);
+                });
+                container.scrollTop = container.scrollHeight;
+            } catch(e) {}
+        }
+
+        async function toggleTentacle(name) {
+            await fetch('/api/toggle_tentacle', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            fetchStatus();
+        }
+
+        async function toggleSkill(name) {
+            await fetch('/api/toggle_skill', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            fetchStatus();
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+            
+            input.value = '';
+            
+            const container = document.getElementById('chat-container');
+            const userDiv = document.createElement('div');
+            userDiv.className = 'message user';
+            userDiv.innerText = msg;
+            container.appendChild(userDiv);
+            container.scrollTop = container.scrollHeight;
+
+            document.getElementById('typing').style.display = 'block';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg})
+                });
+                await processSSE(response);
+            } catch(e) {
+                console.error(e);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory(); 
+            }
+        }
+        
+        async function approveCmd(btn, cmd) {
+            btn.parentElement.innerHTML = '<span style="color:#10b981;">✅ 명령어 승인됨. 결과 대기 중...</span>';
+            document.getElementById('typing').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/command/approve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({command: cmd})
+                });
+                await processSSE(response);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory();
+            }
+        }
+        
+        async function declineCmd(btn) {
+            btn.parentElement.innerHTML = '<span style="color:#ef4444;">❌ 명령어 거부됨.</span>';
+            document.getElementById('typing').style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/command/decline', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                await processSSE(response);
+            } finally {
+                document.getElementById('typing').style.display = 'none';
+                fetchMemory();
+            }
+        }
+        
+        async function processSSE(response) {
+            const container = document.getElementById('chat-container');
+            const astDiv = document.createElement('div');
+            astDiv.className = 'message assistant';
+            container.appendChild(astDiv);
+            let currentText = "";
+            let buffer = "";
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            
+            while(true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split('nn');
+                buffer = lines.pop(); 
+                
+                for(const line of lines) {
+                    if(line.startsWith('data: ')) {
+                        const dataStr = line.substring(6);
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if(data.status === 'chunk') {
+                                currentText += data.content;
+                                // CMD 블록은 채팅창에서 숨기고 일반 텍스트만 표시
+                                astDiv.innerText = stripCmd(currentText);
+                                container.scrollTop = container.scrollHeight;
+                            } else if(data.status === 'system') {
+                                currentText += "\n\n[시스템]: " + data.content;
+                                astDiv.innerText = stripCmd(currentText);
+                            } else if(data.status === 'error') {
+                                currentText += "\n\n❌ [오류]: " + data.content;
+                                astDiv.innerText = stripCmd(currentText);
+                                container.scrollTop = container.scrollHeight;
+                            } else if(data.status === 'command_request') {
+                                const cmdDiv = document.createElement('div');
+                                cmdDiv.className = 'cmd-box';
+                                cmdDiv.innerHTML = `
+                                    <div>🛑 <b>명령어 실행 대기 중</b></div>
+                                    <div style="margin-top:10px; color:#fbbf24;">${data.content}</div>
+                                    <div class="cmd-actions">
+                                        <button class="cmd-btn btn-yes" onclick="approveCmd(this, '${data.content.replace(/'/g, "'")}')">✅ 허락</button>
+                                        <button class="cmd-btn btn-no" onclick="declineCmd(this)">❌ 거부</button>
+                                    </div>
+                                `;
+                                astDiv.appendChild(cmdDiv);
+                                container.scrollTop = container.scrollHeight;
+                            }
+                        } catch(e) {}
+                    }
+                }
+            }
+        }
+
+        // [신규 6단계] 알림 조건 변경 시 키워드 입력 필드 활성/비활성 처리
+        document.getElementById('fac-alert-threshold').addEventListener('change', function(e) {
+            const container = document.getElementById('fac-keyword-container');
+            if (e.target.value === 'contains') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        });
+
+        async function createCustomTentacle() {
+            const filename = document.getElementById('fac-filename').value.trim();
+            const url = document.getElementById('fac-url').value.trim();
+            const selector = document.getElementById('fac-selector').value.trim();
+            const alert_threshold = document.getElementById('fac-alert-threshold').value;
+            const keyword = document.getElementById('fac-keyword').value.trim();
+            const interval_minutes = document.getElementById('fac-interval').value;
+            
+            const statusDiv = document.getElementById('fac-status');
+            
+            if (!filename || !url || !selector) {
+                statusDiv.innerText = "❌ 모든 필수 항목(*이름, *URL, *Selector)을 채워주세요!";
+                statusDiv.style.color = "var(--danger)";
+                statusDiv.style.display = "block";
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/create_tentacle', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        filename,
+                        url,
+                        selector,
+                        alert_threshold,
+                        keyword,
+                        interval_minutes
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    statusDiv.innerText = `✅ 문어발 에이전트 [${data.filename}] 생성 완료!`;
+                    statusDiv.style.color = "var(--success)";
+                    statusDiv.style.display = "block";
+                    
+                    // 폼 초기화
+                    document.getElementById('fac-filename').value = '';
+                    document.getElementById('fac-url').value = '';
+                    document.getElementById('fac-selector').value = '';
+                    document.getElementById('fac-keyword').value = '';
+                    
+                    // 상태 정보 즉시 리로드
+                    fetchStatus();
+                    
+                    // 3초 후 모달 닫기
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                        closeModal();
+                    }, 2500);
+                } else {
+                    statusDiv.innerText = `❌ 에러: ${data.error}`;
+                    statusDiv.style.color = "var(--danger)";
+                    statusDiv.style.display = "block";
+                }
+            } catch (e) {
+                statusDiv.innerText = `❌ 통신 실패: ${e}`;
+                statusDiv.style.color = "var(--danger)";
+                statusDiv.style.display = "block";
+            }
+        }
+
+        setInterval(fetchStatus, 5000);
+        fetchConfig();
+        fetchStatus();
+        fetchMemory();
+        {% endraw %}
+    </script>
+</body>
+</html>

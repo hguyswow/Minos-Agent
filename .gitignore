@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Minos Project Specific Private Data
+state/bot_config.json
+state/user_states.json
+llm_config.json
+memory_logs/
+memory_backup/
+scratch/
+user_settings.json
+docs/Manual_*.md.bak
+tentacles/data/
+tentacles/logs/
+skill_system/skills/google_credentials.json
+skill_system/skills/google_token.json
+
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup and temp files
+*.bak
+*.tmp
+*.v1_bak
+*.v3_backup
+
+# Logs directory
+logs/
+tentacles/logs/
+
+# Morse code / scratch notes
+tentacles/morning_code_clean.txt
+
+# Logs
+*.log
+bridge_err.log
+bridge_out.log
+telegram_bridge.log
+
+# Telegram inbox/outbox queues
+telegram_inbox.json
+telegram_outbox.json
+
+# Reminders & States
+state/reminders.json
+
+# Personal runtime data (never commit)
+todo_list.txt
+state/
+memory_backup/
+minos_storage/
+test_minos_data/
+*.corrupt.*
+.minos.lock
